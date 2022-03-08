@@ -18,7 +18,7 @@ impl BigInt {
     pub fn from_u8(from: u8) -> BigInt {
         BigInt {
             sign: None,
-            bits: BitField::from_u8_sparse(from)
+            bits: BitField::from_u8_lt(from)
         }
     }
 
@@ -32,14 +32,14 @@ impl BigInt {
     pub fn from_u32(from: u32) -> BigInt {
         BigInt {
             sign: None,
-            bits: BitField::from_u32_sparse(from)
+            bits: BitField::from_u32_lt(from)
         }
     }
 
     pub fn from_u64(from: u64) -> BigInt {
         BigInt {
             sign: None,
-            bits: BitField::from_u64_sparse(from)
+            bits: BitField::from_u64_lt(from)
         }
     }
 
