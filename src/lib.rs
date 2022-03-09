@@ -1,31 +1,33 @@
 use std::ops::{Shl, ShlAssign, BitAnd, BitAndAssign, BitOrAssign, BitOr, AddAssign, Add, SubAssign};
+use std::cmp::Ordering;
 
 type Block = u64;
 
 const BLOCK_SIZE: usize = 64;
 const BLOCK_MASK: u64 = 0xFFFFFFFFFFFFFFFF;
-const HIGH_BIT: u64 = 0x8000000000000000;
+const BIT_64: u64 = 0x8000000000000000;
+const BIT_65: u128 = 0x10000000000000000;
 
 const HEX_DIGITS: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'];
 
 #[cfg(test)]
 mod tests;
 
-#[derive(Clone)]
-pub struct BigInt {
+#[derive(Clone, PartialEq)]
+pub struct BigUInt {
     length: usize,
     bits: Vec<Block>,
 }
 
-impl BigInt {
-    pub fn new() -> BigInt {
-        BigInt {
+impl BigUInt {
+    pub fn new() -> BigUInt {
+        BigUInt {
             length: 0,
             bits: Vec::new(),
         }
     }
 
-    pub fn from_u8(from: u8) -> BigInt {
+    pub fn from_u8(from: u8) -> BigUInt {
         if from > 0 {
             let mut work = from;
 
@@ -38,16 +40,16 @@ impl BigInt {
                     work <<= 1;
                 }
             }
-            BigInt {
+            BigUInt {
                 length,
                 bits: vec![from as Block],
             }
         } else {
-            BigInt::new()
+            BigUInt::new()
         }
     }
 
-    pub fn from_u16(from: u16) -> BigInt {
+    pub fn from_u16(from: u16) -> BigUInt {
         if from > 0 {
             let mut work = from;
 
@@ -60,16 +62,16 @@ impl BigInt {
                     work <<= 1;
                 }
             }
-            BigInt {
+            BigUInt {
                 length,
                 bits: vec![from as Block],
             }
         } else {
-            BigInt::new()
+            BigUInt::new()
         }
     }
 
-    pub fn from_u32(from: u32) -> BigInt {
+    pub fn from_u32(from: u32) -> BigUInt {
         if from > 0 {
             let mut work = from;
 
@@ -82,16 +84,16 @@ impl BigInt {
                     work <<= 1;
                 }
             }
-            BigInt {
+            BigUInt {
                 length,
                 bits: vec![from as Block],
             }
         } else {
-            BigInt::new()
+            BigUInt::new()
         }
     }
 
-    pub fn from_u64(from: u64) -> BigInt {
+    pub fn from_u64(from: u64) -> BigUInt {
         if from > 0 {
             let mut work = from;
 
@@ -104,16 +106,16 @@ impl BigInt {
                     work <<= 1;
                 }
             }
-            BigInt {
+            BigUInt {
                 length,
                 bits: vec![from as Block],
             }
         } else {
-            BigInt::new()
+            BigUInt::new()
         }
     }
 
-    pub fn from_u128(from: u128) -> BigInt {
+    pub fn from_u128(from: u128) -> BigUInt {
         if from > 0 {
             let (bits, mut high_block) = if from > BLOCK_MASK as u128 {
                 let mut bits = vec![(from & BLOCK_MASK as u128) as Block, ];
@@ -129,7 +131,7 @@ impl BigInt {
 
             let mut length = 0usize;
             for idx in (1..=BLOCK_SIZE).rev() {
-                if high_block & HIGH_BIT == HIGH_BIT {
+                if high_block & BIT_64 == BIT_64 {
                     length = idx;
                     break;
                 } else {
@@ -139,12 +141,12 @@ impl BigInt {
             if bits.len() > 1 {
                 length += BLOCK_SIZE
             }
-            BigInt {
+            BigUInt {
                 length,
                 bits,
             }
         } else {
-            BigInt::new()
+            BigUInt::new()
         }
     }
 
@@ -195,7 +197,7 @@ impl BigInt {
         if bit {
             self.bits[index / BLOCK_SIZE] |= 1 << bit_offset;
         } else {
-            self.bits[index / BLOCK_SIZE] &=  !(1 << bit_offset);
+            self.bits[index / BLOCK_SIZE] &= !(1 << bit_offset);
         }
         res
     }
@@ -273,14 +275,14 @@ impl BigInt {
     }
 }
 
-impl Default for BigInt {
+impl Default for BigUInt {
     fn default() -> Self {
         Self::new()
     }
 }
 
 struct BitFieldIterator<'a> {
-    bits: &'a BigInt,
+    bits: &'a BigUInt,
     pos: usize,
 }
 
@@ -298,7 +300,7 @@ impl<'a> Iterator for BitFieldIterator<'a> {
     }
 }
 
-impl Add for BigInt {
+impl Add for BigUInt {
     type Output = Self;
 
     fn add(self, other: Self) -> Self::Output {
@@ -357,9 +359,9 @@ impl Add for BigInt {
             } else {
                 bits.len() * BLOCK_SIZE
             };
-            let mut res = BigInt{
+            let mut res = BigUInt {
                 length,
-                bits
+                bits,
             };
             if !overflow {
                 res.trim();
@@ -369,14 +371,13 @@ impl Add for BigInt {
     }
 }
 
-impl AddAssign for BigInt {
+impl AddAssign for BigUInt {
     fn add_assign(&mut self, other: Self) {
         // eprintln!("add_assign({},{})", self.to_hex_string(), other.to_hex_string());
         if self.is_empty() {
             self.length = other.length;
             self.bits = other.bits
-        } else if other.is_empty() {
-        } else {
+        } else if other.is_empty() {} else {
             let mut overflow = false;
             for (block1, block2) in self.bits.iter_mut().zip(other.bits.iter()) {
                 let res = *block1 as u128 + *block2 as u128 + if overflow { 1 } else { 0 };
@@ -426,16 +427,58 @@ impl AddAssign for BigInt {
     }
 }
 
-impl SubAssign for BigInt {
-    fn sub_assign(&mut self, _other: Self) {
-       todo!()
+impl SubAssign for BigUInt {
+    fn sub_assign(&mut self, other: Self) {
+        match (*self).cmp(&other) {
+            Ordering::Less => panic!("integer underflow"),
+            Ordering::Equal => {
+                self.length = 0;
+                self.bits.clear();
+            },
+            Ordering::Greater => {
+                let mut overflow = false;
+                for (block1, block2) in self.bits.iter_mut().zip(other.bits.iter()) {
+                    let mut work = *block1 as u128;
+                    if overflow {
+                        if work > 0 {
+                            work -= 1;
+                            overflow = false;
+                        } else {
+                            work = BIT_65 - 1;
+                            overflow = true;
+                        }
+                    }
+
+                    if work < *block2 as u128 {
+                        overflow = true;
+                        work = work + BIT_65 - *block2 as u128;
+                    } else {
+                        work -= *block2 as u128;
+                    }
+
+                    *block1 = work as u64;
+                }
+                if overflow {
+                    for block in &mut self.bits[other.bits.len()..] {
+                        if *block > 0 {
+                            *block -= 1;
+                            overflow = false;
+                            break;
+                        } else {
+                            *block = BLOCK_MASK;
+                        }
+                    }
+                    assert!(!overflow);
+                }
+            }
+        }
     }
 }
 
-impl ShlAssign<usize> for BigInt {
+
+impl ShlAssign<usize> for BigUInt {
     fn shl_assign(&mut self, rhs: usize) {
-        if rhs == 0 || self.is_empty() {
-        } else {
+        if rhs == 0 || self.is_empty() {} else {
             let new_length = self.length + rhs;
             let old_blocks = self.bits.len();
             if rhs / BLOCK_SIZE > 0 {
@@ -468,8 +511,8 @@ impl ShlAssign<usize> for BigInt {
     }
 }
 
-impl Shl<usize> for BigInt {
-    type Output = BigInt;
+impl Shl<usize> for BigUInt {
+    type Output = BigUInt;
 
     fn shl(self, rhs: usize) -> Self::Output {
         if rhs == 0 || self.is_empty() {
@@ -503,7 +546,7 @@ impl Shl<usize> for BigInt {
                 bits[min - 1] <<= shift;
             }
 
-            BigInt {
+            BigUInt {
                 length: new_length,
                 bits,
             }
@@ -511,7 +554,7 @@ impl Shl<usize> for BigInt {
     }
 }
 
-impl BitAnd for BigInt {
+impl BitAnd for BigUInt {
     type Output = Self;
 
     // rhs is the "right-hand side" of the expression `a & b`
@@ -522,7 +565,7 @@ impl BitAnd for BigInt {
         }
 
 
-        let mut res = BigInt {
+        let mut res = BigUInt {
             length: usize::max(self.length, rhs.length),
             bits,
         };
@@ -531,7 +574,7 @@ impl BitAnd for BigInt {
     }
 }
 
-impl BitAndAssign for BigInt {
+impl BitAndAssign for BigUInt {
     // rhs is the "right-hand side" of the expression `a &= b`
     fn bitand_assign(&mut self, rhs: Self) {
         for (block1, block2) in self.bits.iter_mut().zip(rhs.bits.iter()) {
@@ -542,7 +585,7 @@ impl BitAndAssign for BigInt {
     }
 }
 
-impl BitOr for BigInt {
+impl BitOr for BigUInt {
     type Output = Self;
 
     // rhs is the "right-hand side" of the expression `a &= b`
@@ -556,7 +599,7 @@ impl BitOr for BigInt {
             bits.extend_from_slice(&rhs.bits[self.bits.len()..]);
         }
 
-        let mut res = BigInt {
+        let mut res = BigUInt {
             length: usize::max(self.length, rhs.length),
             bits,
         };
@@ -566,7 +609,7 @@ impl BitOr for BigInt {
     }
 }
 
-impl BitOrAssign for BigInt {
+impl BitOrAssign for BigUInt {
     // rhs is the "right-hand side" of the expression `a &= b`
     fn bitor_assign(&mut self, rhs: Self) {
         for (block1, block2) in self.bits.iter_mut().zip(rhs.bits.iter()) {
@@ -582,4 +625,30 @@ impl BitOrAssign for BigInt {
     }
 }
 
+impl Eq for BigUInt {}
+
+impl PartialOrd for BigUInt {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for BigUInt {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.length.cmp(&other.length) {
+            Ordering::Greater => Ordering::Greater,
+            Ordering::Less => Ordering::Less,
+            Ordering::Equal => {
+                for (block1, block2) in self.bits.iter().zip(other.bits.iter()) {
+                    match block1.cmp(block2) {
+                        Ordering::Greater => return Ordering::Greater,
+                        Ordering::Less => return Ordering::Less,
+                        Ordering::Equal => ()
+                    }
+                }
+                Ordering::Equal
+            }
+        }
+    }
+}
 
