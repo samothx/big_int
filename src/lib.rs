@@ -1,4 +1,4 @@
-use std::ops::{Shl, ShlAssign, BitAnd, BitAndAssign, BitOrAssign, BitOr, AddAssign, Add, SubAssign};
+use std::ops::{Shl, ShlAssign, BitAnd, BitAndAssign, BitOrAssign, BitOr, AddAssign, Add, SubAssign, Sub};
 use std::cmp::Ordering;
 
 type Block = u64;
@@ -422,6 +422,64 @@ impl AddAssign for BigUInt {
                 self.length = (self.bits.len() - 1) * BLOCK_SIZE + 1;
             } else {
                 self.trim()
+            }
+        }
+    }
+}
+
+impl Sub for BigUInt {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self::Output {
+        match (self).cmp(&other) {
+            Ordering::Less => panic!("integer underflow"),
+            Ordering::Equal => BigUInt::new(),
+            Ordering::Greater => {
+                let mut bits = vec![];
+                let mut overflow = false;
+                for (block1, block2) in self.bits.iter().zip(other.bits.iter()) {
+                    let mut work = *block1 as u128;
+                    if overflow {
+                        if work > 0 {
+                            work -= 1;
+                            overflow = false;
+                        } else {
+                            work = BLOCK_MASK as u128;
+                            overflow = true;
+                        }
+                    }
+
+                    if work < *block2 as u128 {
+                        overflow = true;
+                        work = work + BIT_65 - *block2 as u128;
+                    } else {
+                        work -= *block2 as u128;
+                    }
+
+                    bits.push(work as u64);
+                }
+
+                if overflow {
+                    for block in &self.bits[other.bits.len()..] {
+                        if *block > 0 {
+                            bits.push(*block - 1);
+                            overflow = false;
+                            break;
+                        } else {
+                            bits.push(BLOCK_MASK);
+                        }
+                    }
+                    assert!(!overflow);
+                } else {
+                    bits.extend_from_slice(&self.bits[other.bits.len()..]);
+                }
+
+                let mut res = BigUInt{
+                    length: bits.len() * BLOCK_SIZE,
+                    bits
+                };
+                res.trim();
+                res
             }
         }
     }

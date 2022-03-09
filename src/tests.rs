@@ -2,7 +2,7 @@
 use super::*;
 
 #[test]
-fn test_from_u8_sparse() {
+fn test_from_u8() {
     let bf = BigUInt::from_u8(0);
     assert!(bf.is_empty());
     let bf = BigUInt::from_u8(1);
@@ -17,7 +17,7 @@ fn test_from_u8_sparse() {
 }
 
 #[test]
-fn test_from_u16_sparse() {
+fn test_from_u16() {
     let bf = BigUInt::from_u16(0);
     assert!(bf.is_empty());
     let bf = BigUInt::from_u16(1);
@@ -31,7 +31,7 @@ fn test_from_u16_sparse() {
 }
 
 #[test]
-fn test_from_u32_sparse() {
+fn test_from_u32() {
     let bf = BigUInt::from_u32(0);
     assert!(bf.is_empty());
     let bf = BigUInt::from_u32(1);
@@ -45,7 +45,7 @@ fn test_from_u32_sparse() {
 }
 
 #[test]
-fn test_from_u64_sparse() {
+fn test_from_u64() {
     let bf = BigUInt::from_u64(0);
     assert!(bf.is_empty());
     let bf = BigUInt::from_u64(1);
@@ -59,7 +59,7 @@ fn test_from_u64_sparse() {
 }
 
 #[test]
-fn test_from_u128_sparse() {
+fn test_from_u128() {
     let bf = BigUInt::from_u128(0);
     assert!(bf.is_empty());
     let bf = BigUInt::from_u128(1);
@@ -185,7 +185,12 @@ fn test_add() {
 fn test_sub() {
     let mut bi = BigUInt::from_u128(0x8AC7230489E8000000);
     bi -= BigUInt::from_u32(0x5DEAD34);
-    assert_eq!(bi.to_hex_string(), format!("{:X}", 0x8AC7230489E8000000u128 - 0x5DEAD34u128))
+    assert_eq!(bi.to_hex_string(), format!("{:X}", 0x8AC7230489E8000000u128 - 0x5DEAD34u128));
+
+    let bi = BigUInt::from_u128(0x8AC7230489E8000000);
+    let res = bi - BigUInt::from_u32(0x5DEAD34);
+    assert_eq!(res.to_hex_string(), format!("{:X}", 0x8AC7230489E8000000u128 - 0x5DEAD34u128));
+
 }
 
 #[test]
