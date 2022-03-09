@@ -221,3 +221,29 @@ fn test_mul() {
     }
 
 }
+
+#[test]
+fn test_shift_out() {
+    let mut bi = BigUInt::from_u64(0x823456789ABCDEF0);
+    let res = bi.shift_out(16);
+    assert_eq!(bi.to_hex_string(), "56789ABCDEF0");
+    assert_eq!(res.to_hex_string(), "8234");
+
+    let mut bi = BigUInt::from_u64(0x123456789ABCDEF0);
+    let res = bi.shift_out(13);
+    assert_eq!(bi.to_hex_string(), "56789ABCDEF0");
+    assert_eq!(res.to_hex_string(), "1234");
+
+    let mut bi = BigUInt::from_u128(0x123456789ABCDEF01234);
+    let res = bi.shift_out(13);
+    assert_eq!(bi.to_hex_string(), "56789ABCDEF01234");
+    assert_eq!(res.to_hex_string(), "1234");
+
+    let test = 0x123456789ABCDEF01234;
+    let mut bi = BigUInt::from_u128(test);
+    let res = bi.shift_out(16);
+    let expected_res = ((0xFFFFu128 << 61) & test) >> 61;
+    assert_eq!(bi.to_hex_string(), "16789ABCDEF01234");
+    assert_eq!(res.to_hex_string(), format!("{:X}", expected_res));
+
+}

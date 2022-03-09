@@ -1,4 +1,4 @@
-use std::ops::{Shl, ShlAssign, BitAnd, BitAndAssign, BitOrAssign, BitOr, AddAssign, Add, SubAssign, Sub, MulAssign, Mul};
+use std::ops::{Shl, ShlAssign, BitAnd, BitAndAssign, BitOrAssign, BitOr, AddAssign, Add, SubAssign, Sub, MulAssign, Mul, DivAssign};
 use std::cmp::Ordering;
 
 type Block = u64;
@@ -245,6 +245,76 @@ impl BigUInt {
                     }
                 }
                 self.length = (self.bits.len() - 1) * BLOCK_SIZE + length;
+            }
+        }
+    }
+
+    pub fn shift_out(&mut self, num_bits: usize) -> BigUInt {
+        // eprintln!("shift_out({},{}): length: {}", self.to_hex_string(), num_bits, self.length);
+        assert!(num_bits < self.length, "index out of range");
+        if num_bits == self.length {
+            let res = (*self).clone();
+            self.length = 0;
+            self.bits.clear();
+            res
+        } else {
+            let mut last_size = self.length % BLOCK_SIZE;
+            if last_size == 0 {last_size = BLOCK_SIZE; }
+            match last_size.cmp(&num_bits) {
+                Ordering::Greater => {
+                    // eprintln!("shift_out({},{}): Ordering::Greater", self.to_hex_string(), num_bits);
+                    let last_idx = self.bits.len() - 1;
+                    let last = &mut self.bits[last_idx];
+                    // eprintln!("  last:\t{:b}", *last);
+                    let mask = (BLOCK_MASK >> (BLOCK_SIZE - num_bits)) << (last_size - num_bits);
+                    // eprintln!("  mask:\t{:b}", mask);
+                    let res = BigUInt::from_u64((*last & mask) >> (last_size - num_bits));
+                    // eprintln!("  res:\t{}", res.to_bin_string());
+                    *last &= !mask;
+                    // eprintln!("  rest:\t{:b}", *last);
+                    self.length -= num_bits;
+                    res
+                },
+                Ordering::Equal => {
+                    // eprintln!("shift_out({},{}): Ordering::Equal", self.to_hex_string(), num_bits);
+                    let res = BigUInt::from_u64(*self.bits.last().expect("Unexpected empty BigUInt"));
+                    self.length -= num_bits;
+                    self.bits.resize(self.bits.len() - 1, 0);
+                    res
+                },
+                Ordering::Less => {
+                    // eprintln!("shift_out({},{}): Ordering::Less", self.to_hex_string(), num_bits);
+                    let mut rest = num_bits;
+                    let mut block_idx = self.bits.len() - 1;
+                    let mut res = BigUInt::from_u64(self.bits[block_idx]);
+                    // eprintln!("self:\t{}", self.to_bin_string());
+                    // eprintln!("res:\t{}", res.to_bin_string());
+                    block_idx -= 1;
+                    rest -= last_size;
+                    // eprintln!("rest:\t{}", rest);
+                    while rest >= BLOCK_SIZE {
+                        res <<= BLOCK_SIZE;
+                        res.bits[0] = self.bits[block_idx];
+                        block_idx -= 1;
+                        rest -= BLOCK_SIZE;
+                        // eprintln!("res:\t{}", res.to_bin_string());
+                        // eprintln!("rest:\t{}", rest);
+                    }
+
+                    if rest > 0 {
+                        let mask = BLOCK_MASK << (BLOCK_SIZE - rest);
+                        // eprintln!("mask:\t{:b}", mask);
+                        // eprintln!("from:\t{:b}", self.bits[block_idx]);
+                        res <<= rest;
+                        res.bits[0] |= (self.bits[block_idx] & mask) >> (BLOCK_SIZE - rest);
+                        // eprintln!("res:\t{}", res.to_bin_string());
+                        self.bits[block_idx] &= !mask;
+                    }
+                    self.length -= num_bits;
+                    self.bits.resize(self.length / BLOCK_SIZE + if self.length % BLOCK_SIZE > 0 { 1 } else { 0 }, 0);
+                    // eprintln!("self:\t{}", self.to_bin_string());
+                    res
+                }
             }
         }
     }
@@ -580,6 +650,25 @@ impl MulAssign for BigUInt {
             }
             self.length = sum.length;
             self.bits = sum.bits
+        }
+    }
+}
+
+impl DivAssign for BigUInt {
+    fn div_assign(&mut self, other: Self) {
+        match (*self).cmp(&other) {
+            Ordering::Less => {
+                self.length = 0;
+                self.bits.clear();
+            },
+            Ordering::Equal => {
+                self.length = 1;
+                self.bits.clear();
+                self.bits.push(1);
+            },
+            Ordering::Greater => {
+                todo!()
+            }
         }
     }
 }
