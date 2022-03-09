@@ -1,6 +1,6 @@
 use std::ops::{Shl, ShlAssign, BitAnd, BitAndAssign, BitOrAssign, BitOr, AddAssign};
 
-type BLOCK = u64;
+type Block = u64;
 
 const BLOCK_SIZE: usize = 64;
 const BLOCK_MASK: u64 = 0xFFFFFFFFFFFFFFFF;
@@ -14,7 +14,7 @@ mod tests;
 #[derive(Clone)]
 pub struct BigInt {
     length: usize,
-    bits: Vec<BLOCK>,
+    bits: Vec<Block>,
 }
 
 impl BigInt {
@@ -35,12 +35,12 @@ impl BigInt {
                     length = idx;
                     break;
                 } else {
-                    work = work << 1;
+                    work <<= 1;
                 }
             }
             BigInt {
                 length,
-                bits: vec![from as BLOCK],
+                bits: vec![from as Block],
             }
         } else {
             BigInt::new()
@@ -57,12 +57,12 @@ impl BigInt {
                     length = idx;
                     break;
                 } else {
-                    work = work << 1;
+                    work <<= 1;
                 }
             }
             BigInt {
                 length,
-                bits: vec![from as BLOCK],
+                bits: vec![from as Block],
             }
         } else {
             BigInt::new()
@@ -79,12 +79,12 @@ impl BigInt {
                     length = idx;
                     break;
                 } else {
-                    work = work << 1;
+                    work <<= 1;
                 }
             }
             BigInt {
                 length,
-                bits: vec![from as BLOCK],
+                bits: vec![from as Block],
             }
         } else {
             BigInt::new()
@@ -101,12 +101,12 @@ impl BigInt {
                     length = idx;
                     break;
                 } else {
-                    work = work << 1;
+                    work <<= 1;
                 }
             }
             BigInt {
                 length,
-                bits: vec![from as BLOCK],
+                bits: vec![from as Block],
             }
         } else {
             BigInt::new()
@@ -116,14 +116,13 @@ impl BigInt {
     pub fn from_u128(from: u128) -> BigInt {
         if from > 0 {
             let (bits, mut high_block) = if from > BLOCK_MASK as u128 {
-                let mut bits = vec![];
-                bits.push((from & BLOCK_MASK as u128) as BLOCK);
-                let high_block = (from >> BLOCK_SIZE) as BLOCK;
+                let mut bits = vec![(from & BLOCK_MASK as u128) as Block, ];
+                let high_block = (from >> BLOCK_SIZE) as Block;
                 bits.push(high_block);
                 (bits, high_block)
             } else {
                 let mut bits = vec![];
-                let high_block = from as BLOCK;
+                let high_block = from as Block;
                 bits.push(high_block);
                 (bits, high_block)
             };
@@ -134,7 +133,7 @@ impl BigInt {
                     length = idx;
                     break;
                 } else {
-                    high_block = high_block << 1;
+                    high_block <<= 1;
                 }
             }
             if bits.len() > 1 {
@@ -194,9 +193,9 @@ impl BigInt {
             Some((self.bits[index / BLOCK_SIZE] >> bit_offset) & 1 == 1)
         };
         if bit {
-            self.bits[index / BLOCK_SIZE] = self.bits[index / BLOCK_SIZE] | (1 << bit_offset);
+            self.bits[index / BLOCK_SIZE] |= 1 << bit_offset;
         } else {
-            self.bits[index / BLOCK_SIZE] = self.bits[index / BLOCK_SIZE] & !(1 << bit_offset);
+            self.bits[index / BLOCK_SIZE] &=  !(1 << bit_offset);
         }
         res
     }
@@ -258,7 +257,7 @@ impl BigInt {
             let mut digit = 0;
             let offset = self.length - 1;
             for (index, bit) in self.iter().enumerate() {
-                digit = digit << 1;
+                digit <<= 1;
                 if bit {
                     digit += 1;
                 }
@@ -270,6 +269,12 @@ impl BigInt {
             }
             res
         }
+    }
+}
+
+impl Default for BigInt {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -294,25 +299,23 @@ impl<'a> Iterator for BitFieldIterator<'a> {
 
 impl AddAssign for BigInt {
     fn add_assign(&mut self, other: Self) {
-        eprintln!("add_assign({},{})", self.to_hex_string(), other.to_hex_string());
-        if other.is_empty() {
-            ()
-        } else if self.is_empty() {
+        // eprintln!("add_assign({},{})", self.to_hex_string(), other.to_hex_string());
+        if other.is_empty() {} else if self.is_empty() {
             self.length = other.length;
-            self.bits = other.bits.clone();
+            self.bits = other.bits;
         } else {
             let mut overflow = false;
             for (block1, block2) in self.bits.iter_mut().zip(other.bits.iter()) {
                 let res = *block1 as u128 + *block2 as u128 + if overflow { 1 } else { 0 };
-                *block1 = (res & BLOCK_MASK as u128) as BLOCK;
+                *block1 = (res & BLOCK_MASK as u128) as Block;
                 overflow = res & 0x10000000000000000 == 0x10000000000000000;
             }
-            eprintln!("add_assign({},{}) after first loop, overflow: {}", self.to_hex_string(), other.to_hex_string(), overflow);
+            // eprintln!("add_assign({},{}) after first loop, overflow: {}", self.to_hex_string(), other.to_hex_string(), overflow);
             if self.bits.len() > other.bits.len() {
                 if overflow {
                     for block in &mut self.bits[other.bits.len()..] {
                         let res = *block as u128 + 1;
-                        *block = (res & BLOCK_MASK as u128) as BLOCK;
+                        *block = (res & BLOCK_MASK as u128) as Block;
                         overflow = res & 0x10000000000000000 == 0x10000000000000000;
                         if !overflow {
                             break;
@@ -344,15 +347,12 @@ impl AddAssign for BigInt {
                     }
                 }
                 self.make_sparse()
+            } else if overflow {
+                self.bits.push(1);
+                self.length = (self.bits.len() - 1) * BLOCK_SIZE + 1;
             } else {
-                if overflow {
-                    self.bits.push(1);
-                    self.length = (self.bits.len() - 1) * BLOCK_SIZE + 1;
-                } else {
-                    self.make_sparse();
-                }
+                self.make_sparse();
             }
-
         }
     }
 }
@@ -360,7 +360,6 @@ impl AddAssign for BigInt {
 impl ShlAssign<usize> for BigInt {
     fn shl_assign(&mut self, rhs: usize) {
         if rhs == 0 || self.is_empty() {
-            ()
         } else {
             let new_length = self.length + rhs;
             let old_blocks = self.bits.len();
@@ -399,7 +398,7 @@ impl Shl<usize> for BigInt {
 
     fn shl(self, rhs: usize) -> Self::Output {
         if rhs == 0 || self.is_empty() {
-            self.clone()
+            self
         } else {
             let new_length = self.length + rhs;
             let mut bits = if rhs / BLOCK_SIZE > 0 {
@@ -407,8 +406,7 @@ impl Shl<usize> for BigInt {
                 bits.extend(self.bits.iter());
                 bits
             } else {
-                let bits = self.bits.clone();
-                bits
+                self.bits.clone()
             };
 
             if new_length > bits.len() * BLOCK_SIZE {
