@@ -199,3 +199,25 @@ fn test_sub_fail() {
     let mut bi = BigUInt::from_u32(10000);
     bi -= BigUInt::from_u32(50000);
 }
+
+#[test]
+fn test_mul() {
+    let mut bi1 = BigUInt::from_u64(BIT_64);
+    let b12 = BigUInt::from_u32(0xDEAD);
+    let mut check = BIT_64 as u128;
+    for _ in 0..4 {
+        bi1 *= b12.clone();
+        check *= 0xDEAD;
+        assert_eq!(bi1.to_hex_string(), format!("{:X}", check));
+    }
+
+    let mut bi1 = BigUInt::from_u64(BIT_64);
+    let b12 = BigUInt::from_u32(0xDEAD);
+    let mut check = BIT_64 as u128;
+    for _ in 0..4 {
+        bi1 = bi1 * b12.clone();
+        check *= 0xDEAD;
+        assert_eq!(bi1.to_hex_string(), format!("{:X}", check));
+    }
+
+}
