@@ -1,4 +1,4 @@
-use std::ops::{Shl, ShlAssign, BitAnd, BitAndAssign, BitOrAssign, BitOr, AddAssign};
+use std::ops::{Shl, ShlAssign, BitAnd, BitAndAssign, BitOrAssign, BitOr, AddAssign, Add, SubAssign};
 
 type Block = u64;
 
@@ -216,7 +216,7 @@ impl BigInt {
         }
     }
 
-    fn make_sparse(&mut self) {
+    fn trim(&mut self) {
         if self.length > 0 {
             let mut blocks = 0;
             let mut high_block = 0;
@@ -231,6 +231,7 @@ impl BigInt {
                 self.length = 0;
                 self.bits.clear();
             } else {
+                // TODO: use length to make more efficient
                 self.bits.resize(blocks, 0);
                 let mut length = 0usize;
                 for idx in (1..=64).rev() {
@@ -297,12 +298,84 @@ impl<'a> Iterator for BitFieldIterator<'a> {
     }
 }
 
+impl Add for BigInt {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self::Output {
+        // eprintln!("add_assign({},{})", self.to_hex_string(), other.to_hex_string());
+        if other.is_empty() {
+            self
+        } else if self.is_empty() {
+            other
+        } else {
+            let mut overflow = false;
+            let mut bits = vec![];
+            for (block1, block2) in self.bits.iter().zip(other.bits.iter()) {
+                let res = *block1 as u128 + *block2 as u128 + if overflow { 1 } else { 0 };
+                bits.push((res & BLOCK_MASK as u128) as Block);
+                overflow = res & 0x10000000000000000 == 0x10000000000000000;
+            }
+            // eprintln!("add_assign({},{}) after first loop, overflow: {}", self.to_hex_string(), other.to_hex_string(), overflow);
+            if self.bits.len() > other.bits.len() {
+                if overflow {
+                    for block in &self.bits[other.bits.len()..] {
+                        let res = *block as u128 + 1;
+                        bits.push((res & BLOCK_MASK as u128) as Block);
+                        overflow = res & 0x10000000000000000 == 0x10000000000000000;
+                        if !overflow {
+                            break;
+                        }
+                    }
+                }
+                if overflow {
+                    bits.push(1);
+                } else {
+                    bits.extend_from_slice(&self.bits[bits.len()..]);
+                }
+            } else if other.bits.len() > self.bits.len() {
+                if overflow {
+                    for block in &other.bits[self.bits.len()..] {
+                        let res = *block as u128 + 1;
+                        bits.push(res as u64);
+                        overflow = res & 0x10000000000000000 == 0x10000000000000000;
+                        if !overflow {
+                            break;
+                        }
+                    }
+                }
+                if overflow {
+                    bits.push(1);
+                } else {
+                    bits.extend_from_slice(&other.bits[bits.len()..]);
+                }
+            } else if overflow {
+                bits.push(1);
+            }
+
+            let length = if overflow {
+                (bits.len() - 1) * BLOCK_SIZE + 1
+            } else {
+                bits.len() * BLOCK_SIZE
+            };
+            let mut res = BigInt{
+                length,
+                bits
+            };
+            if !overflow {
+                res.trim();
+            }
+            res
+        }
+    }
+}
+
 impl AddAssign for BigInt {
     fn add_assign(&mut self, other: Self) {
         // eprintln!("add_assign({},{})", self.to_hex_string(), other.to_hex_string());
-        if other.is_empty() {} else if self.is_empty() {
+        if self.is_empty() {
             self.length = other.length;
-            self.bits = other.bits;
+            self.bits = other.bits
+        } else if other.is_empty() {
         } else {
             let mut overflow = false;
             for (block1, block2) in self.bits.iter_mut().zip(other.bits.iter()) {
@@ -323,10 +396,8 @@ impl AddAssign for BigInt {
                     }
                     if overflow {
                         self.bits.push(1);
-                        self.length = (self.bits.len() - 1) * BLOCK_SIZE + 1;
                     }
                 }
-                self.make_sparse()
             } else if other.bits.len() > self.bits.len() {
                 if overflow {
                     for block in &other.bits[self.bits.len()..] {
@@ -337,23 +408,27 @@ impl AddAssign for BigInt {
                             break;
                         }
                     }
-                    if overflow {
-                        self.bits.push(1);
-                    }
                 }
-                if other.bits.len() > self.bits.len() {
-                    for block in &other.bits[self.bits.len()..] {
-                        self.bits.push(*block);
-                    }
+                if overflow {
+                    self.bits.push(1);
+                } else {
+                    self.bits.extend_from_slice(&other.bits[self.bits.len()..]);
                 }
-                self.make_sparse()
             } else if overflow {
                 self.bits.push(1);
+            }
+            if overflow {
                 self.length = (self.bits.len() - 1) * BLOCK_SIZE + 1;
             } else {
-                self.make_sparse();
+                self.trim()
             }
         }
+    }
+}
+
+impl SubAssign for BigInt {
+    fn sub_assign(&mut self, _other: Self) {
+       todo!()
     }
 }
 
@@ -451,7 +526,7 @@ impl BitAnd for BigInt {
             length: usize::max(self.length, rhs.length),
             bits,
         };
-        res.make_sparse();
+        res.trim();
         res
     }
 }
@@ -463,7 +538,7 @@ impl BitAndAssign for BigInt {
             *block1 &= *block2;
         }
 
-        self.make_sparse();
+        self.trim();
     }
 }
 
@@ -486,7 +561,7 @@ impl BitOr for BigInt {
             bits,
         };
 
-        res.make_sparse();
+        res.trim();
         res
     }
 }
@@ -503,7 +578,7 @@ impl BitOrAssign for BigInt {
         }
         self.length = usize::max(self.length, rhs.length);
 
-        self.make_sparse();
+        self.trim();
     }
 }
 
