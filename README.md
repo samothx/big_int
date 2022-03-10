@@ -1,2 +1,2 @@
-# big_int
-Implementation of (almost) unlimited length integers 
+# simple_big_int
+Implementation of (almost) unlimited length integers. 

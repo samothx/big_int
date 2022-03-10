@@ -1,3 +1,5 @@
+#![crate_name = "simple_big_int"]
+
 use std::ops::{Shl, ShlAssign, BitAnd, BitAndAssign, BitOrAssign, BitOr, AddAssign, Add, SubAssign, Sub, MulAssign, Mul, DivAssign};
 use std::cmp::Ordering;
 
@@ -13,6 +15,8 @@ const HEX_DIGITS: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'
 #[cfg(test)]
 mod tests;
 
+/// An unsigned integer of indefinite size, limited only by memory constraints and rust maximum
+/// vector size.
 #[derive(Clone, PartialEq)]
 pub struct BigUInt {
     length: usize,
@@ -20,6 +24,13 @@ pub struct BigUInt {
 }
 
 impl BigUInt {
+    /// Create an empty (zero value) BigUInt.
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigUInt;
+    /// let bi = BigUInt::new();
+    /// ```
     pub fn new() -> BigUInt {
         BigUInt {
             length: 0,
@@ -27,6 +38,18 @@ impl BigUInt {
         }
     }
 
+    /// Create a BigUInt from an u8 value.
+    ///
+    /// # Arguments
+    ///
+    /// * from - the u8 value
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigUInt;
+    /// let bi = BigUInt::from_u8(0xFF);
+    /// assert_eq!(bi.to_hex_string(),"FF");
+    /// ```
     pub fn from_u8(from: u8) -> BigUInt {
         if from > 0 {
             let mut work = from;
@@ -49,6 +72,18 @@ impl BigUInt {
         }
     }
 
+    /// Create a BigUInt from an u16 value.
+    ///
+    /// # Arguments
+    ///
+    /// * from - the u16 value
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigUInt;
+    /// let bi = BigUInt::from_u16(0xFFFF);
+    /// assert_eq!(bi.to_hex_string(),"FFFF");
+    /// ```
     pub fn from_u16(from: u16) -> BigUInt {
         if from > 0 {
             let mut work = from;
@@ -70,6 +105,19 @@ impl BigUInt {
             BigUInt::new()
         }
     }
+
+    /// Create a BigUInt from an u32 value.
+    ///
+    /// # Arguments
+    ///
+    /// * from - the u32 value
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigUInt;
+    /// let bi = BigUInt::from_u32(0xFFFFFFFF);
+    /// assert_eq!(bi.to_hex_string(),"FFFFFFFF");
+    /// ```
 
     pub fn from_u32(from: u32) -> BigUInt {
         if from > 0 {
@@ -93,6 +141,19 @@ impl BigUInt {
         }
     }
 
+    /// Create a BigUInt from an u64 value.
+    ///
+    /// # Arguments
+    ///
+    /// * from - the u64 value
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigUInt;
+    /// let bi = BigUInt::from_u64(0xFFFFFFFFFFFFFFFF);
+    /// assert_eq!(bi.to_hex_string(),"FFFFFFFFFFFFFFFF");
+    /// ```
+
     pub fn from_u64(from: u64) -> BigUInt {
         if from > 0 {
             let mut work = from;
@@ -114,6 +175,19 @@ impl BigUInt {
             BigUInt::new()
         }
     }
+
+    /// Create a BigUInt from an u128 value.
+    ///
+    /// # Arguments
+    ///
+    /// * from - the u128 value
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigUInt;
+    /// let bi = BigUInt::from_u128(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
+    /// assert_eq!(bi.to_hex_string(),"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+    /// ```
 
     pub fn from_u128(from: u128) -> BigUInt {
         if from > 0 {
@@ -150,20 +224,71 @@ impl BigUInt {
         }
     }
 
+    /// Retrieve the number of bits stored in the BigUInt
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigUInt;
+    /// let bi = BigUInt::from_u32(0xFFFFFFF);
+    /// assert_eq!(bi.length(), 28);
+    /// ```
+
     pub fn length(&self) -> usize {
         self.length
     }
+
+    /// Check if the BigUInt is 0 / empty
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigUInt;
+    /// let bi = BigUInt::from_u32(0xFFFFFFF);
+    /// assert!(!bi.is_empty());
+    /// ```
 
     pub fn is_empty(&self) -> bool {
         self.length == 0
     }
 
-    fn iter(&self) -> BitFieldIterator {
-        BitFieldIterator {
+    /// Create an iterator that iterates over the bits of a BigUInt and returns each bit value
+    /// as true or false.
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigUInt;
+    /// let bi = BigUInt::from_u32(0xF0F0F0F0);
+    /// let mut res = 0u32;
+    /// bi.iter().for_each(|bit| {
+    ///     res <<= 1;
+    ///     if bit {
+    ///         res |= 1;
+    ///     }
+    /// });
+    /// assert_eq!(res, 0xF0F0F0F0)
+    /// ```
+    pub fn iter(&self) -> BitIterator {
+        BitIterator {
             bits: self,
             pos: self.length,
         }
     }
+
+    /// Get the value of an individual bit
+    ///
+    /// # Arguments
+    /// * index - the index of the bit
+    ///
+    /// # Return Values
+    ///  * Some(true) - if the bit is set
+    ///  * Some(false) - if the bit is not set
+    ///  * None - if the index was out of range
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigUInt;
+    /// let bi = BigUInt::from_u32(0xF0F0F0F0);
+    /// assert_eq!(bi.get(31), Some(true))
+    /// ```
 
     pub fn get(&self, index: usize) -> Option<bool> {
         if index >= self.length {
@@ -173,6 +298,68 @@ impl BigUInt {
             Some((self.bits[index / BLOCK_SIZE] >> bit_offset) & 1 == 1)
         }
     }
+
+
+    /// Will extract the requested amount of bits out of self and return them as a BigUInt.
+    ///
+    /// Due to the way BigUInt is created left trailing zeros are trimmed so that result length may
+    /// be less than requested length.
+    ///
+    /// # Arguments
+    /// * start - index of the first bit
+    /// * num - number of bits to extract
+    ///
+    /// Please be aware that the index will count down instead of up, meaning
+    /// ```
+    /// use simple_big_int::BigUInt;
+    /// let bi = BigUInt::from_u128(0xF0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0);
+    /// let res = bi.get_bits(127,8);
+    /// ```
+    /// will get you bits 127..120
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigUInt;
+    /// let bi = BigUInt::from_u128(0xF0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0);
+    /// let res = bi.get_bits(23,8);
+    /// assert_eq!(res.to_hex_string(),"F0");
+    /// ```
+    pub fn get_bits(&self, start: usize, num_bits: usize) -> BigUInt {
+        assert!(start < self.length, "Index out of range, start is too big: start >= length {}>={}", start, self.length);
+        assert!(start + 1 >= num_bits, "Index out of range, start index does not leave enough bits for num_bits");
+        if num_bits == 0 {
+            BigUInt::new()
+        } else if start == self.length - 1 && num_bits == self.length {
+            self.clone()
+        } else {
+            let mut block_idx = start / BLOCK_SIZE;
+            let start_offset = start % BLOCK_SIZE;
+            if num_bits < start_offset + 1 {
+                let left_offset = BLOCK_SIZE - start_offset - 1;
+                let right_offset = BLOCK_SIZE - num_bits - left_offset;
+                let mask = (BLOCK_MASK << right_offset) >> left_offset;
+                BigUInt::from_u64((self.bits[block_idx] & mask) >> right_offset)
+            } else {
+                let mut rest = num_bits;
+                let left_offset = BLOCK_SIZE - start_offset - 1;
+                let mut res = BigUInt::from_u64(self.bits[block_idx] & (BLOCK_MASK >> left_offset));
+                rest -= BLOCK_SIZE - left_offset;
+                while rest >= BLOCK_SIZE {
+                    block_idx -= 1;
+                    res <<= BLOCK_SIZE;
+                    res.bits[0] = self.bits[block_idx];
+                    rest -= BLOCK_SIZE;
+                }
+                if rest > 0 {
+                    let right_offset = BLOCK_SIZE - rest;
+                    res <<= rest;
+                    res.bits[0] |= (self.bits[block_idx] & (BLOCK_MASK << right_offset)) >> right_offset;
+                }
+                res
+            }
+        }
+    }
+
 
     pub fn set(&mut self, index: usize, bit: bool) -> Option<bool> {
         let mut empty = false;
@@ -259,7 +446,7 @@ impl BigUInt {
             res
         } else {
             let mut last_size = self.length % BLOCK_SIZE;
-            if last_size == 0 {last_size = BLOCK_SIZE; }
+            if last_size == 0 { last_size = BLOCK_SIZE; }
             match last_size.cmp(&num_bits) {
                 Ordering::Greater => {
                     // eprintln!("shift_out({},{}): Ordering::Greater", self.to_hex_string(), num_bits);
@@ -273,15 +460,16 @@ impl BigUInt {
                     *last &= !mask;
                     // eprintln!("  rest:\t{:b}", *last);
                     self.length -= num_bits;
+                    self.trim();
                     res
-                },
+                }
                 Ordering::Equal => {
                     // eprintln!("shift_out({},{}): Ordering::Equal", self.to_hex_string(), num_bits);
                     let res = BigUInt::from_u64(*self.bits.last().expect("Unexpected empty BigUInt"));
                     self.length -= num_bits;
                     self.bits.resize(self.bits.len() - 1, 0);
                     res
-                },
+                }
                 Ordering::Less => {
                     // eprintln!("shift_out({},{}): Ordering::Less", self.to_hex_string(), num_bits);
                     let mut rest = num_bits;
@@ -312,6 +500,7 @@ impl BigUInt {
                     }
                     self.length -= num_bits;
                     self.bits.resize(self.length / BLOCK_SIZE + if self.length % BLOCK_SIZE > 0 { 1 } else { 0 }, 0);
+                    self.trim();
                     // eprintln!("self:\t{}", self.to_bin_string());
                     res
                 }
@@ -351,12 +540,12 @@ impl Default for BigUInt {
     }
 }
 
-struct BitFieldIterator<'a> {
+pub struct BitIterator<'a> {
     bits: &'a BigUInt,
     pos: usize,
 }
 
-impl<'a> Iterator for BitFieldIterator<'a> {
+impl<'a> Iterator for BitIterator<'a> {
     type Item = bool;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -544,9 +733,9 @@ impl Sub for BigUInt {
                     bits.extend_from_slice(&self.bits[other.bits.len()..]);
                 }
 
-                let mut res = BigUInt{
+                let mut res = BigUInt {
                     length: bits.len() * BLOCK_SIZE,
-                    bits
+                    bits,
                 };
                 res.trim();
                 res
@@ -562,7 +751,7 @@ impl SubAssign for BigUInt {
             Ordering::Equal => {
                 self.length = 0;
                 self.bits.clear();
-            },
+            }
             Ordering::Greater => {
                 let mut overflow = false;
                 for (block1, block2) in self.bits.iter_mut().zip(other.bits.iter()) {
@@ -614,7 +803,7 @@ impl Mul for BigUInt {
         } else {
             let mut res_list = vec![];
             for (idx1, block1) in other.bits.iter().enumerate() {
-                for (idx2,block2) in self.bits.iter().enumerate() {
+                for (idx2, block2) in self.bits.iter().enumerate() {
                     let mut res = BigUInt::from_u128(*block1 as u128 * *block2 as u128);
                     res <<= (idx1 + idx2) * BLOCK_SIZE;
                     res_list.push(res);
@@ -631,14 +820,13 @@ impl Mul for BigUInt {
 
 impl MulAssign for BigUInt {
     fn mul_assign(&mut self, other: Self) {
-        if self.is_empty() {
-        } else if other.is_empty() {
+        if self.is_empty() {} else if other.is_empty() {
             self.length = 0;
             self.bits.clear();
         } else {
             let mut res_list = vec![];
             for (idx1, block1) in other.bits.iter().enumerate() {
-                for (idx2,block2) in self.bits.iter().enumerate() {
+                for (idx2, block2) in self.bits.iter().enumerate() {
                     let mut res = BigUInt::from_u128(*block1 as u128 * *block2 as u128);
                     res <<= (idx1 + idx2) * BLOCK_SIZE;
                     res_list.push(res);
@@ -660,12 +848,12 @@ impl DivAssign for BigUInt {
             Ordering::Less => {
                 self.length = 0;
                 self.bits.clear();
-            },
+            }
             Ordering::Equal => {
                 self.length = 1;
                 self.bits.clear();
                 self.bits.push(1);
-            },
+            }
             Ordering::Greater => {
                 todo!()
             }

@@ -247,3 +247,20 @@ fn test_shift_out() {
     assert_eq!(res.to_hex_string(), format!("{:X}", expected_res));
 
 }
+
+#[test]
+fn test_get_bits() {
+    let bi = BigUInt::from_u128(0xF0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0);
+    let res = bi.get_bits(127, 64);
+    assert_eq!(res.to_hex_string(), "F0F0F0F0F0F0F0F0");
+
+    let res = bi.get_bits(63, 64);
+    assert_eq!(res.to_hex_string(), "F0F0F0F0F0F0F0F0");
+
+    let res = bi.get_bits(95, 64);
+    assert_eq!(res.to_hex_string(), "F0F0F0F0F0F0F0F0");
+
+    let res = bi.get_bits(94, 64);
+    assert_eq!(res.to_hex_string(), "E1E1E1E1E1E1E1E1");
+
+}
