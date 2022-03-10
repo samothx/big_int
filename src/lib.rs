@@ -365,10 +365,9 @@ impl BigUInt {
         let mut empty = false;
         if index >= self.length {
             if bit {
-                for _ in self.length..=index / BLOCK_SIZE {
-                    self.bits.push(0);
-                }
+                self.bits.resize(index / BLOCK_SIZE + 1, 0);
                 empty = true;
+                self.length = index + 1;
             } else {
                 return None;
             }
@@ -385,8 +384,76 @@ impl BigUInt {
             self.bits[index / BLOCK_SIZE] |= 1 << bit_offset;
         } else {
             self.bits[index / BLOCK_SIZE] &= !(1 << bit_offset);
+            if index == self.length - 1 {
+                self.trim()
+            }
         }
         res
+    }
+
+    /// Subtract from self and store the result in self.
+    /// Due to BigUInt not being able to implement the Copy trait and the std::ops::AddAssign trait
+    /// consuming the right hand side operator the use of -= can be unefficient, having to clone
+    /// the right hand side operator.
+    /// This function works around that restriction, it is used by the std::ops::AddAssign implementation
+    ///
+    /// # Arguments
+    /// * other - the value to be subtracted
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigUInt;
+    ///  let mut bi = BigUInt::from_u128(0xF0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0);
+    ///  bi.sub_from(&BigUInt::from_u32(0xF0F0));
+    ///  assert_eq!(bi.to_hex_string(),"F0F0F0F0F0F0F0F0F0F0F0F0F0F00000");
+    /// ```
+
+    pub fn sub_from(&mut self, other: &BigUInt) {
+        // TODO: find out when trim is required, instead of doing it generally
+        match (*self).cmp(other) {
+            Ordering::Less => panic!("integer underflow"),
+            Ordering::Equal => {
+                self.length = 0;
+                self.bits.clear();
+            }
+            Ordering::Greater => {
+                let mut overflow = false;
+                for (block1, block2) in self.bits.iter_mut().zip(other.bits.iter()) {
+                    let mut work = *block1 as u128;
+                    if overflow {
+                        if work > 0 {
+                            work -= 1;
+                            overflow = false;
+                        } else {
+                            work = BIT_65 - 1;
+                            overflow = true;
+                        }
+                    }
+
+                    if work < *block2 as u128 {
+                        overflow = true;
+                        work = work + BIT_65 - *block2 as u128;
+                    } else {
+                        work -= *block2 as u128;
+                    }
+
+                    *block1 = work as u64;
+                }
+                if overflow {
+                    for block in &mut self.bits[other.bits.len()..] {
+                        if *block > 0 {
+                            *block -= 1;
+                            overflow = false;
+                            break;
+                        } else {
+                            *block = BLOCK_MASK;
+                        }
+                    }
+                    assert!(!overflow);
+                }
+                self.trim();
+            }
+        }
     }
 
     pub fn to_bin_string(&self) -> String {
@@ -558,6 +625,10 @@ impl<'a> Iterator for BitIterator<'a> {
         }
     }
 }
+
+// TODO: create alternatives to all std::ops traits as they are often inefficient due to
+//       BigUInt not implementing the copy trait
+//       See SubAssign / BigUInt::sub_from()
 
 impl Add for BigUInt {
     type Output = Self;
@@ -746,49 +817,7 @@ impl Sub for BigUInt {
 
 impl SubAssign for BigUInt {
     fn sub_assign(&mut self, other: Self) {
-        match (*self).cmp(&other) {
-            Ordering::Less => panic!("integer underflow"),
-            Ordering::Equal => {
-                self.length = 0;
-                self.bits.clear();
-            }
-            Ordering::Greater => {
-                let mut overflow = false;
-                for (block1, block2) in self.bits.iter_mut().zip(other.bits.iter()) {
-                    let mut work = *block1 as u128;
-                    if overflow {
-                        if work > 0 {
-                            work -= 1;
-                            overflow = false;
-                        } else {
-                            work = BIT_65 - 1;
-                            overflow = true;
-                        }
-                    }
-
-                    if work < *block2 as u128 {
-                        overflow = true;
-                        work = work + BIT_65 - *block2 as u128;
-                    } else {
-                        work -= *block2 as u128;
-                    }
-
-                    *block1 = work as u64;
-                }
-                if overflow {
-                    for block in &mut self.bits[other.bits.len()..] {
-                        if *block > 0 {
-                            *block -= 1;
-                            overflow = false;
-                            break;
-                        } else {
-                            *block = BLOCK_MASK;
-                        }
-                    }
-                    assert!(!overflow);
-                }
-            }
-        }
+        self.sub_from(&other);
     }
 }
 
@@ -844,6 +873,7 @@ impl MulAssign for BigUInt {
 
 impl DivAssign for BigUInt {
     fn div_assign(&mut self, other: Self) {
+        assert!(!other.is_empty(),"Division by zero");
         match (*self).cmp(&other) {
             Ordering::Less => {
                 self.length = 0;
@@ -851,11 +881,35 @@ impl DivAssign for BigUInt {
             }
             Ordering::Equal => {
                 self.length = 1;
-                self.bits.clear();
-                self.bits.push(1);
+                self.bits.resize(1,0);
+                self.bits[0] = 1;
             }
             Ordering::Greater => {
-                todo!()
+                /*
+                if D = 0 then error(DivisionByZeroException) end
+                    Q := 0                  -- Initialize quotient and remainder to zero
+                    R := 0
+                    for i := n − 1 .. 0 do  -- Where n is number of bits in N
+                    R := R << 1           -- Left-shift R by 1 bit
+                    R(0) := N(i)          -- Set the least-significant bit of R equal to bit i of the numerator
+                    if R ≥ D then
+                        R := R − D
+                        Q(i) := 1
+                    end
+                end
+                */
+                let mut res = BigUInt::new();
+                let mut modulo = BigUInt::new();
+                for idx in (0..self.length).rev() {
+                    modulo <<= 1;
+                    modulo.set(0,self.get(idx).expect("Unexpected bit index out of range"));
+                    if modulo >= other {
+                        modulo.sub_from(&other);
+                        res.set(idx, true);
+                    }
+                }
+                self.length = res.length;
+                self.bits = res.bits;
             }
         }
     }
@@ -920,7 +974,6 @@ impl Shl<usize> for BigUInt {
             if shift > 0 {
                 let rev_shift = BLOCK_SIZE - shift;
                 let mask = BLOCK_MASK << rev_shift;
-
 
                 let min = usize::max(bits.len() - self.bits.len(), 1);
 
@@ -1020,6 +1073,7 @@ impl PartialOrd for BigUInt {
 
 impl Ord for BigUInt {
     fn cmp(&self, other: &Self) -> Ordering {
+        // eprintln!("cmp 0x{} length: {}, 0x{} length {}", self.to_hex_string(),self.length(), other.to_hex_string(), other.length());
         match self.length.cmp(&other.length) {
             Ordering::Greater => Ordering::Greater,
             Ordering::Less => Ordering::Less,

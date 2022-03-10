@@ -156,15 +156,6 @@ fn test_or() {
     assert_eq!(bf1.to_bin_string(), format!("{:b}", 0xF0F0F0F0F0F0F0F0u128 | 0x3C3C3C3C3C3C3C3Cu128));
 }
 
-/*
-#[test]
-fn test_to_sparse() {
-    let mut bf1 = BigInt::from_u128(0x1);
-    assert_eq!(bf1.length(), 128);
-    bf1.to_sparse();
-    assert_eq!(bf1.length(), 1);
-}
-*/
 
 #[test]
 fn test_add() {
@@ -263,4 +254,36 @@ fn test_get_bits() {
     let res = bi.get_bits(94, 64);
     assert_eq!(res.to_hex_string(), "E1E1E1E1E1E1E1E1");
 
+}
+
+#[test]
+fn test_set() {
+    let mut bi = BigUInt::new();
+    assert_eq!(bi.set(7, true), None);
+    assert_eq!(bi.to_hex_string(), "80");
+    assert_eq!(bi.set(6, true), Some(false));
+    assert_eq!(bi.to_hex_string(), "C0");
+    assert_eq!(bi.set(7, false), Some(true));
+    assert_eq!(bi.to_hex_string(), "40");
+    assert_eq!(bi.set(6, false), Some(true));
+    assert_eq!(bi.to_hex_string(), "0");
+}
+
+#[test]
+fn test_cmp() {
+    let bi1 = BigUInt::from_u32(0x2000);
+    let bi2 = BigUInt::from_u32(0x2000);
+    assert_eq!(bi1.cmp(&bi2), Ordering::Equal);
+    let bi2 = BigUInt::from_u32(0x3000);
+    assert_eq!(bi1.cmp(&bi2), Ordering::Less);
+    let bi2 = BigUInt::from_u32(0x1000);
+    assert_eq!(bi1.cmp(&bi2), Ordering::Greater);
+
+}
+
+#[test]
+fn test_div() {
+    let mut bi = BigUInt::from_u32(0x80000000);
+    bi /= BigUInt::from_u32(0x3000);
+    assert_eq!(bi.to_hex_string(), "2AAAA");
 }
