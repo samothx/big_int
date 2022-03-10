@@ -286,4 +286,16 @@ fn test_div() {
     let mut bi = BigUInt::from_u32(0x80000000);
     bi /= BigUInt::from_u32(0x3000);
     assert_eq!(bi.to_hex_string(), "2AAAA");
+
+    let mut bi = BigUInt::from_u32(0x80000000);
+    let modulo = bi.div_mod_self(&BigUInt::from_u32(0x3000));
+    assert_eq!(bi.to_hex_string(), "2AAAA");
+    assert_eq!(modulo.to_hex_string(), "2000");
+
+}
+
+#[test]
+fn test_to_dec_string() {
+    let bi = BigUInt::from_u64(0xAB54A98F81652440);
+    assert_eq!(bi.to_dec_string(), "12345678912345678912");
 }
