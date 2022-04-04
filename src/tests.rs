@@ -1,5 +1,6 @@
+use std::cmp::Ordering;
 
-use super::*;
+use super::big_uint::{BigUInt, BIT_64};
 
 #[test]
 fn test_from_u8() {
