@@ -12,6 +12,9 @@ pub const HEX_DIGITS: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8',
 mod traits;
 pub use traits::*;
 
+#[cfg(test)]
+mod test;
+
 /// An unsigned integer of indefinite size, limited only by memory constraints and rust maximum
 /// vector size.
 #[derive(Clone, PartialEq)]
@@ -238,6 +241,32 @@ impl BigUInt {
             Some(0)
         } else if self.length < 65 {
             Some(self.bits[0])
+        } else {
+            None
+        }
+    }
+
+    /// Create a u128 from a BigUInt value.
+    ///
+    /// # Returns
+    /// An option returning the u64 value or None if the BigUInt was larger then the maximum value for u128
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigUInt;
+    /// let bi = BigUInt::from_u128(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
+    /// assert_eq!(bi.to_u128(),Some(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF));
+    /// ```
+
+    pub fn to_u128(&self) -> Option<u128> {
+        if self.is_empty() {
+            Some(0)
+        } else if self.length < 129 {
+            if self.length > 64 {
+                Some(((self.bits[1] as u128) << 64) | self.bits[0] as u128)
+            } else {
+                Some(self.bits[0] as u128)
+            }
         } else {
             None
         }
@@ -600,8 +629,8 @@ impl BigUInt {
     /// ```
     /// use simple_big_int::BigUInt;
     ///  let mut bi = BigUInt::from_u128(0xF0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0);
-    ///  bi.sub_from(&BigUInt::from_u32(0xF0F0));
-    ///  assert_eq!(bi.to_hex_string(),"F0F0F0F0F0F0F0F0F0F0F0F0F0F00000");
+    ///  let res = bi.sub_from(&BigUInt::from_u32(0xF0F0));
+    ///  assert_eq!(res.to_hex_string(),"F0F0F0F0F0F0F0F0F0F0F0F0F0F00000");
     /// ```
 
     pub fn sub_from(&self, other: &Self) -> Self {

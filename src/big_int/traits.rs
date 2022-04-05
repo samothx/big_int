@@ -70,26 +70,32 @@ impl Mul for BigInt {
 
     fn mul(self, other: Self) -> Self::Output {
         BigInt{
-            signed: self.signed
+            signed: self.signed ^ other.signed,
+            uint: self.uint * other.uint
         }
     }
 }
 
 impl MulAssign for BigInt {
     fn mul_assign(&mut self, other: Self) {
-        todo!()
+        self.signed = self.signed ^ other.signed;
+        self.uint.mul_assign(other.uint);
     }
 }
 
 impl Div for BigInt {
     type Output = Self;
     fn div(self, other: Self) -> Self {
-        todo!()
+        BigInt{
+            signed: self.signed ^ other.signed,
+            uint: self.uint / other.uint
+        }
     }
 }
 
 impl DivAssign for BigInt {
     fn div_assign(&mut self, other: Self) {
-        todo!()
+        self.signed = self.signed ^ other.signed;
+        self.uint = self.uint.div_mod_self(&other.uint);
     }
 }
