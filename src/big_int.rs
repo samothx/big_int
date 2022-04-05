@@ -1,5 +1,9 @@
 use crate::BigUInt;
 
+mod traits;
+pub use traits::*;
+use std::cmp::Ordering;
+
 /// An unsigned integer of indefinite size, limited only by memory constraints and rust maximum
 /// vector size.
 #[derive(Clone, PartialEq)]
@@ -147,6 +151,80 @@ impl BigInt {
                     None
                 }
             }
+        }
+    }
+
+    pub fn add_to(&self, other: &Self) -> BigInt {
+        if self.signed == other.signed {
+            // both same signed, just add & keep sign
+            Self {
+                signed: self.signed,
+                uint: self.uint.add_to(&other.uint),
+            }
+        } else if self.signed {
+            // other is positive so -a + b -> b - a
+            other.sub_from(&self)
+        } else {
+            // self is positive so a - b
+            self.sub_from(&other)
+        }
+    }
+
+    pub fn add_to_self(&mut self, other: &Self) {
+        if self.signed == other.signed {
+            // same sign - just add & keep sign
+            self.uint.add_to_self(&other.uint);
+        } else if self.signed {
+            // other is positive so -a + b -> b - a
+            *self = other.sub_from(self);
+        } else {
+            // self is positive so a - b
+            self.sub_from_self(&other);
+        }
+    }
+
+    pub fn sub_from(&self, other: &Self) -> BigInt {
+        if self.signed == other.signed {
+            if self > other {
+                BigInt{
+                    signed: self.signed,
+                    uint: self.uint.sub_from(&other.uint)
+                }
+            }  else if self < other {
+                // sign reversal
+                BigInt{
+                    signed: !self.signed,
+                    uint: other.uint.sub_from(&self.uint)
+                }
+            } else {
+                BigInt::new()
+            }
+        } else  {
+            BigInt{
+                signed: self.signed,
+                uint: self.uint.add_to(&other.uint)
+            }
+        }
+    }
+
+    pub fn sub_from_self(&mut self, other: &Self) {
+        if self.signed == other.signed {
+            match (self as &Self).cmp(other) {
+                Ordering::Greater => {
+                    self.uint.sub_from_self(&other.uint);
+                }
+                Ordering::Less => {
+                    // sign reversal
+                    self.signed = !self.signed;
+                    self.uint =  other.uint.sub_from(&self.uint)
+                },
+                Ordering::Equal => {
+                    self.signed = false;
+                    self.uint = BigUInt::new()
+                }
+            }
+        } else  {
+            self.uint.add_to_self(&other.uint)
         }
     }
 }
