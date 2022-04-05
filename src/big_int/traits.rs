@@ -4,6 +4,7 @@ use std::cmp::Ordering;
 use super::BigInt;
 use std::fmt::{Debug, Formatter, Display};
 use crate::BigUInt;
+use std::convert::TryFrom;
 
 impl Eq for BigInt {}
 
@@ -140,6 +141,29 @@ impl From<BigUInt> for BigInt {
         }
     }
 }
+
+impl TryFrom<BigInt> for i64 {
+    type Error = &'static str;
+    fn try_from(value: BigInt) -> Result<Self, Self::Error> {
+        if let Some(res) = value.to_i64() {
+            Ok(res)
+        } else {
+            Err("BigInt is too big for i64")
+        }
+    }
+}
+
+impl TryFrom<BigInt> for i128 {
+    type Error = &'static str;
+    fn try_from(value: BigInt) -> Result<Self, Self::Error> {
+        if let Some(res) = value.to_i128() {
+            Ok(res)
+        } else {
+            Err("BigInt is too big for i128")
+        }
+    }
+}
+
 
 impl Debug for BigInt {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

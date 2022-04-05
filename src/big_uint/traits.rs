@@ -320,6 +320,29 @@ impl TryFrom<BigInt> for BigUInt {
     }
 }
 
+impl TryFrom<BigUInt> for u64 {
+    type Error = &'static str;
+    fn try_from(value: BigUInt) -> Result<Self, Self::Error> {
+        if let Some(res) = value.to_u64() {
+            Ok(res)
+        } else {
+            Err("BigUInt is too big for u64")
+        }
+    }
+}
+
+impl TryFrom<BigUInt> for u128 {
+    type Error = &'static str;
+    fn try_from(value: BigUInt) -> Result<Self, Self::Error> {
+        if let Some(res) = value.to_u128() {
+            Ok(res)
+        } else {
+            Err("BigUInt is too big for u128")
+        }
+    }
+}
+
+
 impl Debug for BigUInt {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "(L:{},0x{})", self.length, self.to_hex_string())

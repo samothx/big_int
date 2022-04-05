@@ -6,6 +6,10 @@ fn test_add() {
     let bi2: BigInt = 20.into();
     assert_eq!(bi1 + bi2, 30.into());
 
+    let bi1: BigInt = (-10).into();
+    let bi2: BigInt = (-20).into();
+    assert_eq!(bi1 + bi2, (-30).into());
+
     let bi1: BigInt = 10.into();
     let bi2: BigInt = (-20).into();
     assert_eq!(bi1 + bi2, (-10).into());
@@ -30,6 +34,11 @@ fn test_add_to_self() {
     bi1 += bi2;
     assert_eq!(bi1, 30.into());
 
+    let mut bi1: BigInt = (-10).into();
+    let bi2: BigInt = (-20).into();
+    bi1 += bi2;
+    assert_eq!(bi1, (-30).into());
+
     let mut bi1: BigInt = 10.into();
     let bi2: BigInt = (-20).into();
     bi1 += bi2;
@@ -49,6 +58,60 @@ fn test_add_to_self() {
     assert_eq!(bi1, 0x1FFFFFFFFFFFFFFFCi128.into());
     eprintln!("{:?}", bi1);
 }
+
+#[test]
+fn test_subtract() {
+    let bi1: BigInt = 20.into();
+    let bi2: BigInt = 10.into();
+    assert_eq!(bi1 - bi2, 10.into());
+
+    let bi1: BigInt = (-20).into();
+    let bi2: BigInt = (-10).into();
+    assert_eq!(bi1 - bi2, (-10).into());
+
+    let bi1: BigInt = (-10).into();
+    let bi2: BigInt = (-20).into();
+    assert_eq!(bi1 - bi2, 10.into());
+
+    let bi1: BigInt = 20.into();
+    let bi2: BigInt = (-10).into();
+    assert_eq!(bi1 - bi2, 30.into());
+
+    let mut bi1: BigInt = 0x1FFFFFFFFFFFFFFFCi128.into();
+    let bi2: BigInt = 0xFFFFFFFFFFFFFFFEi128.into();
+
+    bi1 -= bi2;
+    assert_eq!(bi1, 0xFFFFFFFFFFFFFFFEi128.into());
+
+    let bi2: BigInt = 0x7FFFFFFFFFFFFFFFi64.into();
+    bi1 -= bi2;
+    assert_eq!(bi1, 0x7FFFFFFFFFFFFFFFi64.into());
+}
+
+#[test]
+fn test_subtract_from_self() {
+    let mut bi1: BigInt = 20.into();
+    let bi2: BigInt = 10.into();
+    bi1 -= bi2;
+    assert_eq!(bi1, 10.into());
+
+    let mut bi1: BigInt = (-20).into();
+    let bi2: BigInt = (-10).into();
+    bi1 -= bi2;
+    assert_eq!(bi1, (-10).into());
+
+    let mut bi1: BigInt = (-10).into();
+    let bi2: BigInt = (-20).into();
+    bi1 -= bi2;
+    assert_eq!(bi1, 10.into());
+
+    let mut bi1: BigInt = 20.into();
+    let bi2: BigInt = (-10).into();
+    bi1 -= bi2;
+    assert_eq!(bi1, 30.into());
+
+}
+
 
 #[test]
 fn test_from_i128() {

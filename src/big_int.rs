@@ -204,6 +204,11 @@ impl BigInt {
 
     /// Add one BigInt to another
     ///
+    /// Due to BigInt not being able to implement the Copy trait and the std::ops::Add trait
+    /// consuming the right hand side operator, the use of + can be inefficient having to clone
+    /// the right hand side operator.
+    /// This function works around that restriction, it is used by the std::ops::Add implementation
+    ///
     /// # Returns
     /// The result of the addition as BigInt
     ///
@@ -230,6 +235,24 @@ impl BigInt {
         }
     }
 
+    /// Add one BigInt to another and store the result in self
+    ///
+    /// Due to BigInt not being able to implement the Copy trait and the std::ops::AddAssign trait
+    /// consuming the right hand side operator, the use of += can be inefficient having to clone
+    /// the right hand side operator.
+    /// This function works around that restriction, it is used by the std::ops::AddAssign implementation
+    ///
+    /// # Returns
+    /// The result of the addition in self
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigInt;
+    /// let mut bi1 = BigInt::from(10);
+    /// let bi2 = BigInt::from(20);
+    /// bi1.add_to_self(&bi2);
+    /// assert_eq!(bi1.to_dec_str(),"30");
+    /// ```
     pub fn add_to_self(&mut self, other: &Self) {
         if self.signed == other.signed {
             // same sign - just add & keep sign
@@ -259,6 +282,24 @@ impl BigInt {
             BigInt::new()
         }
     }
+
+    /// Subtract one BigInt to another
+    ///
+    /// Due to BigInt not being able to implement the Copy trait and the std::ops::Sub trait
+    /// consuming the right hand side operator, the use of - can be inefficient having to clone
+    /// the right hand side operator.
+    /// This function works around that restriction, it is used by the std::ops::Sub implementation
+    ///
+    /// # Returns
+    /// The result of the subtraction as BigInt
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigInt;
+    /// let bi1 = BigInt::from(10);
+    /// let bi2 = BigInt::from(20);
+    /// assert_eq!(bi1.sub_from(&bi2).to_dec_str(),"-10");
+    /// ```
 
     pub fn sub_from(&self, other: &Self) -> BigInt {
         if self.signed == other.signed {
