@@ -7,7 +7,7 @@ mod traits;
 pub use traits::*;
 use std::cmp::Ordering;
 
-/// An unsigned integer of indefinite size, limited only by memory constraints and rust maximum
+/// A signed integer of indefinite size, limited only by memory constraints and rust maximum
 /// vector size.
 #[derive(Clone, PartialEq)]
 pub struct BigInt {
@@ -43,7 +43,7 @@ impl BigInt {
     /// ```
     pub fn from_i8(from: i8) -> BigInt {
         BigInt {
-            signed: if from > 0 { false } else { true },
+            signed: if from >= 0 { false } else { true },
             uint: BigUInt::from_u8(i8::abs(from) as u8)
         }
     }
@@ -62,7 +62,7 @@ impl BigInt {
     /// ```
     pub fn from_i16(from: i16) -> BigInt {
         BigInt {
-            signed: if from > 0 { false } else { true },
+            signed: if from >= 0 { false } else { true },
             uint: BigUInt::from_u16(i16::abs(from) as u16)
         }
     }
@@ -83,7 +83,7 @@ impl BigInt {
 
     pub fn from_i32(from: i32) -> BigInt {
         BigInt {
-            signed: if from > 0 { false } else { true },
+            signed: if from >= 0 { false } else { true },
             uint: BigUInt::from_u32(i32::abs(from) as u32)
         }
     }
@@ -109,7 +109,7 @@ impl BigInt {
             }
         } else {
             BigInt {
-                signed: if from > 0 { false } else { true },
+                signed: if from >= 0 { false } else { true },
                 uint: BigUInt::from_u64(i64::abs(from) as u64)
             }
         }
@@ -136,7 +136,7 @@ impl BigInt {
             }
         } else {
             BigInt {
-                signed: if from > 0 { false } else { true },
+                signed: if from >= 0 { false } else { true },
                 uint: BigUInt::from_u128(i128::abs(from) as u128)
             }
         }
@@ -202,6 +202,18 @@ impl BigInt {
         }
     }
 
+    /// Add one BigInt to another
+    ///
+    /// # Returns
+    /// The result of the addition as BigInt
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigInt;
+    /// let bi1 = BigInt::from(10);
+    /// let bi2 = BigInt::from(20);
+    /// assert_eq!(bi1.add_to(&bi2).to_dec_str(),"30");
+    /// ```
     pub fn add_to(&self, other: &Self) -> BigInt {
         if self.signed == other.signed {
             // both same signed, just add & keep sign
@@ -211,10 +223,10 @@ impl BigInt {
             }
         } else if self.signed {
             // other is positive so -a + b -> b - a
-            other.sub_from(&self)
+            other.sub_from_unsigned(&self)
         } else {
             // self is positive so a - b
-            self.sub_from(&other)
+            self.sub_from_unsigned(&other)
         }
     }
 
@@ -224,29 +236,33 @@ impl BigInt {
             self.uint.add_to_self(&other.uint);
         } else if self.signed {
             // other is positive so -a + b -> b - a
-            *self = other.sub_from(self);
+            *self = other.sub_from_unsigned(self);
         } else {
             // self is positive so a - b
-            self.sub_from_self(&other);
+            self.sub_from_self_unsigned(&other);
+        }
+    }
+
+    fn sub_from_unsigned(&self, other: &Self) -> BigInt {
+        if self.uint > other.uint {
+            BigInt{
+                signed: self.signed,
+                uint: self.uint.sub_from(&other.uint)
+            }
+        }  else if self.uint < other.uint {
+            // sign reversal
+            BigInt{
+                signed: !self.signed,
+                uint: other.uint.sub_from(&self.uint)
+            }
+        } else {
+            BigInt::new()
         }
     }
 
     pub fn sub_from(&self, other: &Self) -> BigInt {
         if self.signed == other.signed {
-            if self > other {
-                BigInt{
-                    signed: self.signed,
-                    uint: self.uint.sub_from(&other.uint)
-                }
-            }  else if self < other {
-                // sign reversal
-                BigInt{
-                    signed: !self.signed,
-                    uint: other.uint.sub_from(&self.uint)
-                }
-            } else {
-                BigInt::new()
-            }
+            self.sub_from_unsigned(other)
         } else  {
             BigInt{
                 signed: self.signed,
@@ -255,24 +271,56 @@ impl BigInt {
         }
     }
 
+    fn sub_from_self_unsigned(&mut self, other: &Self) {
+        match (self.uint).cmp(&other.uint) {
+            Ordering::Greater => {
+                self.uint.sub_from_self(&other.uint);
+            }
+            Ordering::Less => {
+                // sign reversal
+                self.signed = !self.signed;
+                self.uint =  other.uint.sub_from(&self.uint)
+            },
+            Ordering::Equal => {
+                self.signed = false;
+                self.uint = BigUInt::new()
+            }
+        }
+    }
+
     pub fn sub_from_self(&mut self, other: &Self) {
         if self.signed == other.signed {
-            match (self as &Self).cmp(other) {
-                Ordering::Greater => {
-                    self.uint.sub_from_self(&other.uint);
-                }
-                Ordering::Less => {
-                    // sign reversal
-                    self.signed = !self.signed;
-                    self.uint =  other.uint.sub_from(&self.uint)
-                },
-                Ordering::Equal => {
-                    self.signed = false;
-                    self.uint = BigUInt::new()
-                }
-            }
+            self.sub_from_self_unsigned(other)
         } else  {
             self.uint.add_to_self(&other.uint)
         }
+    }
+
+    pub fn to_dec_str(&self) -> String {
+        format!("{}{}", if self.signed { "-" } else { "" }, self.uint.to_dec_string())
+    }
+
+    pub fn is_positive(&self) -> bool {
+        !self.signed
+    }
+
+    pub fn is_negative(&self) -> bool {
+        self.signed
+    }
+
+    pub fn set_positive(&mut self) {
+        self.signed = false;
+    }
+
+    pub fn set_negative(&mut self) {
+        self.signed = true;
+    }
+
+    pub fn reverse_sign(&mut self) {
+        self.signed = !self.signed;
+    }
+
+    pub fn to_unsigned(self) -> BigUInt {
+        self.uint
     }
 }

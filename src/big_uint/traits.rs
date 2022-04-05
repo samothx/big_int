@@ -2,6 +2,9 @@ use std::ops::{Shl, ShlAssign, BitAnd, BitAndAssign, BitOrAssign, BitOr, AddAssi
 use std::cmp::Ordering;
 
 use super::{BigUInt, BLOCK_SIZE, BLOCK_MASK};
+use std::fmt::{Display, Formatter, Debug};
+use crate::BigInt;
+use std::convert::TryFrom;
 
 impl Eq for BigUInt {}
 
@@ -272,5 +275,59 @@ impl BitOrAssign for BigUInt {
         self.length = usize::max(self.length, rhs.length);
 
         self.trim();
+    }
+}
+
+impl From<u8> for BigUInt {
+    fn from(src: u8) -> Self {
+        BigUInt::from_u8(src)
+    }
+}
+
+impl From<u16> for BigUInt {
+    fn from(src: u16) -> Self {
+        BigUInt::from_u16(src)
+    }
+}
+
+impl From<u32> for BigUInt {
+    fn from(src: u32) -> Self {
+        BigUInt::from_u32(src)
+    }
+}
+
+impl From<u64> for BigUInt {
+    fn from(src: u64) -> Self {
+        BigUInt::from_u64(src)
+    }
+}
+
+impl From<u128> for BigUInt {
+    fn from(src: u128) -> Self {
+        BigUInt::from_u128(src)
+    }
+}
+
+
+impl TryFrom<BigInt> for BigUInt {
+    type Error = &'static str;
+    fn try_from(value: BigInt) -> Result<Self, Self::Error> {
+        if value.is_negative() {
+            Err("BigUInt only accepts values >= 0")
+        } else {
+            Ok(value.to_unsigned())
+        }
+    }
+}
+
+impl Debug for BigUInt {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(L:{},0x{})", self.length, self.to_hex_string())
+    }
+}
+
+impl Display for BigUInt {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.to_dec_string().as_str())
     }
 }

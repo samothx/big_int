@@ -2,6 +2,8 @@ use std::ops::{AddAssign, Add, SubAssign, Sub, MulAssign, Mul, DivAssign, Div};
 use std::cmp::Ordering;
 
 use super::BigInt;
+use std::fmt::{Debug, Formatter, Display};
+use crate::BigUInt;
 
 impl Eq for BigInt {}
 
@@ -69,9 +71,9 @@ impl Mul for BigInt {
     type Output = Self;
 
     fn mul(self, other: Self) -> Self::Output {
-        BigInt{
+        BigInt {
             signed: self.signed ^ other.signed,
-            uint: self.uint * other.uint
+            uint: self.uint * other.uint,
         }
     }
 }
@@ -86,9 +88,9 @@ impl MulAssign for BigInt {
 impl Div for BigInt {
     type Output = Self;
     fn div(self, other: Self) -> Self {
-        BigInt{
+        BigInt {
             signed: self.signed ^ other.signed,
-            uint: self.uint / other.uint
+            uint: self.uint / other.uint,
         }
     }
 }
@@ -97,5 +99,56 @@ impl DivAssign for BigInt {
     fn div_assign(&mut self, other: Self) {
         self.signed = self.signed ^ other.signed;
         self.uint = self.uint.div_mod_self(&other.uint);
+    }
+}
+
+impl From<i8> for BigInt {
+    fn from(src: i8) -> Self {
+        BigInt::from_i8(src)
+    }
+}
+
+impl From<i16> for BigInt {
+    fn from(src: i16) -> Self {
+        BigInt::from_i16(src)
+    }
+}
+
+impl From<i32> for BigInt {
+    fn from(src: i32) -> Self {
+        BigInt::from_i32(src)
+    }
+}
+
+impl From<i64> for BigInt {
+    fn from(src: i64) -> Self {
+        BigInt::from_i64(src)
+    }
+}
+
+impl From<i128> for BigInt {
+    fn from(src: i128) -> Self {
+        BigInt::from_i128(src)
+    }
+}
+
+impl From<BigUInt> for BigInt {
+    fn from(value: BigUInt) -> Self {
+        Self{
+            signed: false,
+            uint: value
+        }
+    }
+}
+
+impl Debug for BigInt {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(L:{},{})", self.uint.length(), self)
+    }
+}
+
+impl Display for BigInt {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.to_dec_str().as_str())
     }
 }
