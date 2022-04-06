@@ -399,7 +399,7 @@ impl BigInt {
     pub fn pow(&self, power: u32) -> BigInt {
         BigInt {
             signed: if self.signed {
-                power % 2 == 1
+                (power & 0x1) == 0x1
             } else {
                 false
             },

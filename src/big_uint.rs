@@ -1,13 +1,13 @@
 use std::cmp::Ordering;
 
-pub type Block = u64;
+type Block = u64;
 
-pub const BLOCK_SIZE: usize = 64;
-pub const BLOCK_MASK: u64 = 0xFFFFFFFFFFFFFFFF;
-pub const BIT_64: u64 = 0x8000000000000000;
-pub const BIT_65: u128 = 0x10000000000000000;
+const BLOCK_SIZE: usize = 64;
+const BLOCK_MASK: u64 = 0xFFFFFFFFFFFFFFFF;
+const BIT_64: u64 = 0x8000000000000000;
+const BIT_65: u128 = 0x10000000000000000;
 
-pub const HEX_DIGITS: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'];
+const HEX_DIGITS: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'];
 
 mod traits;
 pub use traits::*;
@@ -810,6 +810,11 @@ impl BigUInt {
         res
     }
 
+    pub fn gcd(&self,other: &Self) -> BigUInt {
+        // TODO: Implement Binary GCD algorithm: https://en.wikipedia.org/wiki/Binary_GCD_algorithm
+        todo!()
+    }
+
     /// Multiply Divide self with another BigUInt and store the result in self.
     ///
     /// Due to BigUInt not being able to implement the Copy trait and the std::ops::MulAssign trait
@@ -1157,6 +1162,16 @@ impl BigUInt {
                 }
             }
         }
+    }
+
+    #[inline]
+    pub fn is_even(&self) -> bool {
+        self.is_empty() || ((self.bits[0] & 0x1) == 0)
+    }
+
+    #[inline]
+    pub fn is_odd(&self) -> bool {
+        !self.is_even()
     }
 
 }
