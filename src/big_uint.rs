@@ -802,6 +802,14 @@ impl BigUInt {
         }
     }
 
+    pub fn pow(&self, power: u32) -> BigUInt {
+        let mut res = self.clone();
+        for _ in 1..power {
+            res.mul_with_self(self);
+        }
+        res
+    }
+
     /// Multiply Divide self with another BigUInt and store the result in self.
     ///
     /// Due to BigUInt not being able to implement the Copy trait and the std::ops::MulAssign trait

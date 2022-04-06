@@ -396,6 +396,17 @@ impl BigInt {
         self.uint.mul_with_self(&other.uint);
     }
 
+    pub fn pow(&self, power: u32) -> BigInt {
+        BigInt {
+            signed: if self.signed {
+                power % 2 == 1
+            } else {
+                false
+            },
+            uint: self.uint.pow(power)
+        }
+    }
+
     #[inline]
     pub fn is_positive(&self) -> bool {
         !self.signed
