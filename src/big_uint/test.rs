@@ -1,5 +1,6 @@
+use std::cmp::Ordering;
 
-use super::*;
+use super::{BigUInt, BIT_64};
 
 #[test]
 fn test_from_u8() {
@@ -211,6 +212,9 @@ fn test_mul() {
         assert_eq!(bi1.to_hex_string(), format!("{:X}", check));
     }
 
+    let bi1: BigUInt = 0x7FFFFFFFFFFFFFFFu64.into();
+    let bi2: BigUInt = 0x4u8.into();
+    assert_eq!((bi1 * bi2).to_u128(),Some(0x1FFFFFFFFFFFFFFFC));
 }
 
 #[test]

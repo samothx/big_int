@@ -1,7 +1,10 @@
 use std::ops::{Shl, ShlAssign, BitAnd, BitAndAssign, BitOrAssign, BitOr, AddAssign, Add, SubAssign, Sub, MulAssign, Mul, DivAssign, Div};
 use std::cmp::Ordering;
 
-use super::{BigUInt, BLOCK_MASK, BLOCK_SIZE, BIT_65};
+use super::{BigUInt, BLOCK_SIZE, BLOCK_MASK};
+use std::fmt::{Display, Formatter, Debug};
+use crate::BigInt;
+use std::convert::TryFrom;
 
 impl Eq for BigUInt {}
 
@@ -53,57 +56,7 @@ impl Sub for BigUInt {
     type Output = Self;
 
     fn sub(self, other: Self) -> Self::Output {
-        match (self).cmp(&other) {
-            Ordering::Less => panic!("integer underflow"),
-            Ordering::Equal => BigUInt::new(),
-            Ordering::Greater => {
-                let mut bits = vec![];
-                let mut overflow = false;
-                for (block1, block2) in self.bits.iter().zip(other.bits.iter()) {
-                    let mut work = *block1 as u128;
-                    if overflow {
-                        if work > 0 {
-                            work -= 1;
-                            overflow = false;
-                        } else {
-                            work = BLOCK_MASK as u128;
-                            overflow = true;
-                        }
-                    }
-
-                    if work < *block2 as u128 {
-                        overflow = true;
-                        work = work + BIT_65 - *block2 as u128;
-                    } else {
-                        work -= *block2 as u128;
-                    }
-
-                    bits.push(work as u64);
-                }
-
-                if overflow {
-                    for block in &self.bits[other.bits.len()..] {
-                        if *block > 0 {
-                            bits.push(*block - 1);
-                            overflow = false;
-                            break;
-                        } else {
-                            bits.push(BLOCK_MASK);
-                        }
-                    }
-                    assert!(!overflow);
-                } else {
-                    bits.extend_from_slice(&self.bits[other.bits.len()..]);
-                }
-
-                let mut res = BigUInt {
-                    length: bits.len() * BLOCK_SIZE,
-                    bits,
-                };
-                res.trim();
-                res
-            }
-        }
+        self.sub_from(&other)
     }
 }
 
@@ -117,49 +70,13 @@ impl Mul for BigUInt {
     type Output = Self;
 
     fn mul(self, other: Self) -> Self::Output {
-        if self.is_empty() {
-            self
-        } else if other.is_empty() {
-            other
-        } else {
-            let mut res_list = vec![];
-            for (idx1, block1) in other.bits.iter().enumerate() {
-                for (idx2, block2) in self.bits.iter().enumerate() {
-                    let mut res = BigUInt::from_u128(*block1 as u128 * *block2 as u128);
-                    res <<= (idx1 + idx2) * BLOCK_SIZE;
-                    res_list.push(res);
-                }
-            }
-            let mut sum = BigUInt::new();
-            for res in res_list {
-                sum += res;
-            }
-            sum
-        }
+        self.mul_with(&other)
     }
 }
 
 impl MulAssign for BigUInt {
     fn mul_assign(&mut self, other: Self) {
-        if self.is_empty() {} else if other.is_empty() {
-            self.length = 0;
-            self.bits.clear();
-        } else {
-            let mut res_list = vec![];
-            for (idx1, block1) in other.bits.iter().enumerate() {
-                for (idx2, block2) in self.bits.iter().enumerate() {
-                    let mut res = BigUInt::from_u128(*block1 as u128 * *block2 as u128);
-                    res <<= (idx1 + idx2) * BLOCK_SIZE;
-                    res_list.push(res);
-                }
-            }
-            let mut sum = BigUInt::new();
-            for res in res_list {
-                sum += res;
-            }
-            self.length = sum.length;
-            self.bits = sum.bits
-        }
+        self.mul_with_self(&other)
     }
 }
 
@@ -322,5 +239,82 @@ impl BitOrAssign for BigUInt {
         self.length = usize::max(self.length, rhs.length);
 
         self.trim();
+    }
+}
+
+impl From<u8> for BigUInt {
+    fn from(src: u8) -> Self {
+        BigUInt::from_u8(src)
+    }
+}
+
+impl From<u16> for BigUInt {
+    fn from(src: u16) -> Self {
+        BigUInt::from_u16(src)
+    }
+}
+
+impl From<u32> for BigUInt {
+    fn from(src: u32) -> Self {
+        BigUInt::from_u32(src)
+    }
+}
+
+impl From<u64> for BigUInt {
+    fn from(src: u64) -> Self {
+        BigUInt::from_u64(src)
+    }
+}
+
+impl From<u128> for BigUInt {
+    fn from(src: u128) -> Self {
+        BigUInt::from_u128(src)
+    }
+}
+
+
+impl TryFrom<BigInt> for BigUInt {
+    type Error = &'static str;
+    fn try_from(value: BigInt) -> Result<Self, Self::Error> {
+        if value.is_negative() {
+            Err("BigUInt only accepts values >= 0")
+        } else {
+            Ok(value.as_unsigned())
+        }
+    }
+}
+
+impl TryFrom<BigUInt> for u64 {
+    type Error = &'static str;
+    fn try_from(value: BigUInt) -> Result<Self, Self::Error> {
+        if let Some(res) = value.to_u64() {
+            Ok(res)
+        } else {
+            Err("BigUInt is too big for u64")
+        }
+    }
+}
+
+impl TryFrom<BigUInt> for u128 {
+    type Error = &'static str;
+    fn try_from(value: BigUInt) -> Result<Self, Self::Error> {
+        if let Some(res) = value.to_u128() {
+            Ok(res)
+        } else {
+            Err("BigUInt is too big for u128")
+        }
+    }
+}
+
+
+impl Debug for BigUInt {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(L:{},0x{})", self.length, self.to_hex_string())
+    }
+}
+
+impl Display for BigUInt {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.to_dec_string().as_str())
     }
 }
