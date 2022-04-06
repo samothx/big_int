@@ -1,4 +1,6 @@
 use std::cmp::Ordering;
+use std::cmp::min;
+use std::mem::swap;
 
 type Block = u64;
 
@@ -10,6 +12,7 @@ const BIT_65: u128 = 0x10000000000000000;
 const HEX_DIGITS: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'];
 
 mod traits;
+
 pub use traits::*;
 
 
@@ -38,6 +41,39 @@ impl BigUInt {
             length: 0,
             bits: Vec::new(),
         }
+    }
+
+    pub fn from_hex_str(src: &str) -> Result<BigUInt, String> {
+        let mut bits = Vec::new();
+        let mut register = 0u64;
+        for (idx,chr) in src.chars().rev().enumerate() {
+            if chr >= 'A' && chr <= 'F' {
+                register += (chr as u64 - 'A' as u64 + 10) << ((idx % 16) * 4);
+            } else if chr >= 'a' && chr <= 'f' {
+                register += (chr as u64 - 'a' as u64 + 10) << ((idx % 16) * 4);
+            } else if chr >= '0' && chr <= '9'{
+                register += (chr as u64 - '0' as u64) << ((idx % 16) * 4);
+            } else {
+                return Err(format!("invalid character encountered in hex string: '{}'", chr));
+            }
+
+            if idx % 16 == 15 {
+                bits.push(register);
+                register = 0;
+            }
+        }
+
+        if register > 0 {
+            bits.push(register);
+        }
+
+        let mut res = BigUInt{
+            length: bits.len() * BLOCK_SIZE,
+            bits
+        };
+        res.trim();
+
+        Ok(res)
     }
 
     /// Create a BigUInt from an u8 value.
@@ -241,7 +277,7 @@ impl BigUInt {
     /// ```
     #[inline]
     pub fn to_u64(&self) -> Option<u64> {
-        if self.is_empty() {
+        if self.is_zero() {
             Some(0)
         } else if self.length < 65 {
             Some(self.bits[0])
@@ -263,7 +299,7 @@ impl BigUInt {
     /// ```
     #[inline]
     pub fn to_u128(&self) -> Option<u128> {
-        if self.is_empty() {
+        if self.is_zero() {
             Some(0)
         } else if self.length < 129 {
             if self.length > 64 {
@@ -295,10 +331,10 @@ impl BigUInt {
     /// ```
     /// use simple_big_int::BigUInt;
     /// let bi = BigUInt::from_u32(0xFFFFFFF);
-    /// assert!(!bi.is_empty());
+    /// assert!(!bi.is_zero());
     /// ```
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    pub fn is_zero(&self) -> bool {
         self.length == 0
     }
 
@@ -485,9 +521,9 @@ impl BigUInt {
     #[inline]
     pub fn add_to(&self, other: &BigUInt) -> BigUInt {
         // eprintln!("add_assign({},{})", self.to_hex_string(), other.to_hex_string());
-        if other.is_empty() {
+        if other.is_zero() {
             self.clone()
-        } else if self.is_empty() {
+        } else if self.is_zero() {
             other.clone()
         } else {
             let mut overflow = false;
@@ -570,10 +606,10 @@ impl BigUInt {
     #[inline]
     pub fn add_to_self(&mut self, other: &BigUInt) {
         // eprintln!("add_assign({},{})", self.to_hex_string(), other.to_hex_string());
-        if self.is_empty() {
+        if self.is_zero() {
             self.length = other.length;
             self.bits = other.bits.clone()
-        } else if other.is_empty() {} else {
+        } else if other.is_zero() {} else {
             let mut overflow = false;
             for (block1, block2) in self.bits.iter_mut().zip(other.bits.iter()) {
                 let res = *block1 as u128 + *block2 as u128 + if overflow { 1 } else { 0 };
@@ -712,6 +748,7 @@ impl BigUInt {
     /// ```
     #[inline]
     pub fn sub_from_self(&mut self, other: &BigUInt) {
+        // eprintln!("BigUInt::sub_from_self({:?},{:?})", self, other);
         // TODO: find out when trim is required, instead of doing it generally
         match (*self).cmp(other) {
             Ordering::Less => panic!("integer underflow"),
@@ -720,39 +757,42 @@ impl BigUInt {
                 self.bits.clear();
             }
             Ordering::Greater => {
-                let mut overflow = false;
+                // the borrowed bit from the last block
+                let mut borrowed_bit = false;
+                // go through the lower blocks common to both
                 for (block1, block2) in self.bits.iter_mut().zip(other.bits.iter()) {
-                    let mut work = *block1 as u128;
-                    if overflow {
-                        if work > 0 {
-                            work -= 1;
-                            overflow = false;
+                    let mut register = *block1 as u128;
+                    if borrowed_bit {
+                        if register > 0 {
+                            register -= 1;
+                            borrowed_bit = false;
                         } else {
-                            work = BIT_65 - 1;
-                            overflow = true;
+                            register = BLOCK_MASK as u128;
+                            // borrowed_bit stays set
                         }
                     }
 
-                    if work < *block2 as u128 {
-                        overflow = true;
-                        work = work + BIT_65 - *block2 as u128;
+                    let subtract = *block2 as u128;
+                    if register < subtract {
+                        borrowed_bit = true;
+                        register = BIT_65 + register - subtract;
                     } else {
-                        work -= *block2 as u128;
+                        register -= subtract;
                     }
 
-                    *block1 = work as u64;
+                    *block1 = register as u64;
                 }
-                if overflow {
+                if borrowed_bit {
                     for block in &mut self.bits[other.bits.len()..] {
                         if *block > 0 {
                             *block -= 1;
-                            overflow = false;
+                            borrowed_bit = false;
                             break;
                         } else {
                             *block = BLOCK_MASK;
                         }
                     }
-                    assert!(!overflow);
+                    assert!(!borrowed_bit,"borrowed bit not settled! self: {:?}, other: {:?}", self, other);
                 }
                 self.trim();
             }
@@ -783,7 +823,7 @@ impl BigUInt {
     /// ```
     #[inline]
     pub fn mul_with(&self, other: &Self) -> BigUInt {
-        if self.is_empty() || other.is_empty() {
+        if self.is_zero() || other.is_zero() {
             BigUInt::new()
         } else {
             let mut res_list = vec![];
@@ -810,370 +850,568 @@ impl BigUInt {
         res
     }
 
-    pub fn gcd(&self,other: &Self) -> BigUInt {
-        // TODO: Implement Binary GCD algorithm: https://en.wikipedia.org/wiki/Binary_GCD_algorithm
-        todo!()
+    pub fn left_shift(&self, rhs: usize) -> BigUInt {
+        // TODO: redesign: process blocks to new vec instead of copying it ahead
+        if self.is_zero() {
+            BigUInt::new()
+        } else if rhs == 0  {
+            self.clone()
+        } else {
+            let length = self.length + rhs;
+            let mut bits = if rhs / BLOCK_SIZE > 0 {
+                let mut bits = vec![0; rhs / BLOCK_SIZE];
+                bits.extend(self.bits.iter());
+                bits
+            } else {
+                self.bits.clone()
+            };
+
+            if length > bits.len() * BLOCK_SIZE {
+                bits.push(0);
+            }
+            debug_assert!(bits.len() * BLOCK_SIZE >= length);
+            let l_shift = rhs as usize % BLOCK_SIZE;
+            if l_shift > 0 {
+                let r_shift = BLOCK_SIZE - l_shift;
+                let min = usize::max(bits.len() - self.bits.len(), 1);
+
+                for idx in (min..bits.len()).rev() {
+                    bits[idx] <<= l_shift;
+                    bits[idx] |= bits[idx - 1] >> r_shift;
+                }
+                bits[min - 1] <<= l_shift;
+            }
+
+            BigUInt {
+                length,
+                bits,
+            }
+        }
     }
 
-    /// Multiply Divide self with another BigUInt and store the result in self.
-    ///
-    /// Due to BigUInt not being able to implement the Copy trait and the std::ops::MulAssign trait
-    /// consuming the right hand side operator, the use of *= can be inefficient, having to clone
-    /// the right hand side operator.
-    /// This function works around that restriction, it is used by the std::ops::MulAssign implementation
-    ///
-    /// # Arguments
-    /// * other - the multiplyer
-    ///
-    /// # Examples
-    /// ```
-    /// use simple_big_int::BigUInt;
-    /// let mut bi = BigUInt::from_u32(0x80000000);
-    /// bi.mul_with_self(&BigUInt::from_u32(0x3000));
-    ///
-    /// assert_eq!(bi.to_u64(), Some(0x180000000000));
-    /// ```
-    #[inline]
-    pub fn mul_with_self(&mut self, other: &Self) {
-        if self.is_empty() {} else if other.is_empty() {
+    pub fn left_shift_self(&mut self, rhs: usize) {
+        // TODO: redesign: process blocks to new vec instead of copying it ahead
+        if rhs == 0 || self.is_zero() {} else {
+            let new_length = self.length + rhs;
+            let old_blocks = self.bits.len();
+            if rhs as usize / BLOCK_SIZE > 0 {
+                let mut bits = vec![0; rhs / BLOCK_SIZE];
+                bits.extend(self.bits.iter());
+                self.bits = bits;
+            }
+
+            if new_length > self.bits.len() * BLOCK_SIZE {
+                self.bits.push(0);
+            }
+
+            assert!(self.bits.len() * BLOCK_SIZE >= new_length);
+            let shift = rhs as usize % BLOCK_SIZE;
+            if shift > 0 {
+                let rev_shift = BLOCK_SIZE - shift;
+                let min = usize::max(self.bits.len() - old_blocks, 1);
+
+                for idx in (min..self.bits.len()).rev() {
+                    self.bits[idx] <<= shift;
+                    self.bits[idx] |= self.bits[idx - 1] >> rev_shift;
+                }
+                self.bits[min - 1] <<= shift;
+            }
+            self.length = new_length;
+        }
+    }
+
+    pub fn right_shift(&self, rhs: usize) -> Self {
+        if rhs >= self.length {
+            // everything shifted away
+            BigUInt::new()
+        } else if rhs == 0 {
+            // nothing to do
+            self.clone()
+        } else {
+            // remaining right shift after dropping blocks
+            let r_shift = rhs % BLOCK_SIZE;
+            let bits = if r_shift == 0 {
+                // no remaining right shift, just drop blocks
+                self.bits[rhs / BLOCK_SIZE..].to_vec()
+            } else {
+                // some remaining right shift, drop blocks & shift
+                let l_shift = BLOCK_SIZE - r_shift;
+                // skip all blocks that are shifted out
+                let blocks = self.bits[rhs / BLOCK_SIZE..].to_vec();
+                debug_assert!(blocks.len() > 0, "no blocks left");
+                let mut new_block = blocks[0] >> r_shift;
+                let mut bits: Vec<u64> = blocks.iter().skip(1).map(|block| {
+                    let res = new_block | (*block << l_shift);
+                    new_block = *block >> r_shift;
+                    res
+                }).collect();
+                // push the last one
+                bits.push(new_block);
+                bits
+            };
+            BigUInt {
+                length: self.length - rhs,
+                bits,
+            }
+        }
+    }
+
+    pub fn right_shift_self(&mut self, rhs: usize) {
+        if rhs >= self.length {
+            // everything shifted away
+            self.length = 0;
+            self.bits = Vec::new();
+        } else if rhs == 0 {
+            // nothing to do
+        } else {
+            // remaining right shift after dropping blocks
+            let r_shift = rhs % BLOCK_SIZE;
+            let bits = if r_shift == 0 {
+                // no remaining right shift, just drop blocks
+                self.bits[rhs / BLOCK_SIZE..].to_vec()
+            } else {
+                // some remaining right shift, drop blocks & shift
+                let l_shift = BLOCK_SIZE - r_shift;
+                // skip all blocks that are shifted out
+                let blocks = self.bits[rhs / BLOCK_SIZE..].to_vec();
+                debug_assert!(blocks.len() > 0, "no blocks left");
+                let mut new_block = blocks[0] >> r_shift;
+                let mut bits: Vec<u64> = blocks.iter().skip(1).map(|block| {
+                    let res = new_block | (*block << l_shift);
+                    new_block = *block >> r_shift;
+                    res
+                }).collect();
+                // push the last one
+                bits.push(new_block);
+                bits
+            };
+            self.length = self.length - rhs;
+            self.bits = bits;
+        }
+    }
+
+
+
+pub fn trailing_zeros(&self) -> u32 {
+    let mut tz_sum = 0u32;
+    for block in &self.bits {
+        if *block == 0 {
+            tz_sum += BLOCK_SIZE as u32;
+        } else {
+            tz_sum += block.trailing_zeros();
+            break;
+        }
+    }
+    tz_sum
+}
+
+pub fn gcd(&self, other: &Self) -> BigUInt {
+    // Binary GCD algorithm, see https://en.wikipedia.org/wiki/Binary_GCD_algorithm
+    // Base cases: gcd(n, 0) = gcd(0, n) = n
+
+    let mut u = self.clone();
+    let mut v = other.clone();
+
+    if u.is_zero() {
+        return v;
+    } else if v.is_zero() {
+        return u;
+    }
+
+    // Using identities 2 and 3:
+    // gcd(2ⁱ u, 2ʲ v) = 2ᵏ gcd(u, v) with u, v odd and k = min(i, j)
+    // 2ᵏ is the greatest power of two that divides both u and v
+    let i = u.trailing_zeros() as usize;
+    u >>= i;
+    let j = v.trailing_zeros() as usize;
+    v >>= j;
+    let k = min(i, j);
+
+    loop {
+        // u and v are odd at the start of the loop
+        debug_assert!(u.is_odd(), "u = {} is even", &u);
+        debug_assert!(v.is_odd(), "v = {} is even", &v);
+
+        // Swap if necessary so u <= v
+        if u > v {
+            swap(&mut u, &mut v);
+        }
+        // u and v are still both odd after (potentially) swapping
+
+        // Using identity 4 (gcd(u, v) = gcd(|v-u|, min(u, v))
+        v.sub_from_self(&u);
+        // v is now even, but u is unchanged (and odd)
+
+        // Identity 1: gcd(u, 0) = u
+        // The shift by k is necessary to add back the 2ᵏ factor that was removed before the loop
+        if v.is_zero() {
+            return u << k;
+        }
+
+        // Identity 3: gcd(u, 2ʲ v) = gcd(u, v) (u is known to be odd)
+        v >>= v.trailing_zeros() as usize;
+        // v is now odd again
+    }
+}
+
+/// Multiply Divide self with another BigUInt and store the result in self.
+///
+/// Due to BigUInt not being able to implement the Copy trait and the std::ops::MulAssign trait
+/// consuming the right hand side operator, the use of *= can be inefficient, having to clone
+/// the right hand side operator.
+/// This function works around that restriction, it is used by the std::ops::MulAssign implementation
+///
+/// # Arguments
+/// * other - the multiplyer
+///
+/// # Examples
+/// ```
+/// use simple_big_int::BigUInt;
+/// let mut bi = BigUInt::from_u32(0x80000000);
+/// bi.mul_with_self(&BigUInt::from_u32(0x3000));
+///
+/// assert_eq!(bi.to_u64(), Some(0x180000000000));
+/// ```
+#[inline]
+pub fn mul_with_self(&mut self, other: &Self) {
+    if self.is_zero() {} else if other.is_zero() {
+        self.length = 0;
+        self.bits.clear();
+    } else {
+        let mut res_list = vec![];
+        for (idx1, block1) in other.bits.iter().enumerate() {
+            for (idx2, block2) in self.bits.iter().enumerate() {
+                let mut res = BigUInt::from_u128(*block1 as u128 * *block2 as u128);
+                res <<= (idx1 + idx2) * BLOCK_SIZE;
+                res_list.push(res);
+            }
+        }
+        let mut sum = BigUInt::new();
+        for res in res_list {
+            sum += res;
+        }
+        self.length = sum.length;
+        self.bits = sum.bits
+    }
+}
+
+
+/// Divide self by a divisor, return the result and the modulo.
+/// Due to BigUInt not being able to implement the Copy trait and the std::ops::Div trait
+/// consuming the right hand side operator the use of / can be inefficient, having to clone
+/// the right hand side operator.
+/// This function works around that restriction, it is used by the std::ops::Div implementation
+///
+/// # Arguments
+/// * other - the divisor
+///
+/// # Returns
+///
+/// A tuple containing the result of the division and the modulo
+///
+/// # Examples
+/// ```
+/// use simple_big_int::BigUInt;
+/// let bi = BigUInt::from_u32(0x80000000);
+/// let (quotient,modulo) = bi.div_mod(&BigUInt::from_u32(0x3000));
+/// assert_eq!(quotient.to_hex_string(), "2AAAA");
+/// assert_eq!(modulo.to_hex_string(), "2000");
+/// ```
+#[inline]
+pub fn div_mod(&self, other: &BigUInt) -> (BigUInt, BigUInt) {
+    assert!(!other.is_zero(), "Division by zero");
+    match (*self).cmp(other) {
+        Ordering::Less => {
+            (BigUInt::new(), self.clone())
+        }
+        Ordering::Equal => {
+            (BigUInt::from_u32(1), BigUInt::new())
+        }
+        Ordering::Greater => {
+            /*
+            if D = 0 then error(DivisionByZeroException) end
+                Q := 0                  -- Initialize quotient and remainder to zero
+                R := 0
+                for i := n − 1 .. 0 do  -- Where n is number of bits in N
+                R := R << 1           -- Left-shift R by 1 bit
+                R(0) := N(i)          -- Set the least-significant bit of R equal to bit i of the numerator
+                if R ≥ D then
+                    R := R − D
+                    Q(i) := 1
+                end
+            end
+            */
+            let mut res = BigUInt::new();
+            let mut modulo = BigUInt::new();
+            for idx in (0..self.length).rev() {
+                modulo <<= 1;
+                modulo.set(0, self.get(idx).expect("Unexpected bit index out of range"));
+                if modulo >= *other {
+                    modulo.sub_from_self(other);
+                    res.set(idx, true);
+                }
+            }
+            (res, modulo)
+        }
+    }
+}
+
+/// Divide self by a divisor, store the result in self and return the modulo.
+/// Due to BigUInt not being able to implement the Copy trait and the std::ops::DivAssign trait
+/// consuming the right hand side operator the use of /= can be inefficient, having to clone
+/// the right hand side operator.
+/// This function works around that restriction, it is used by the std::ops::DivAssign implementation
+///
+/// # Arguments
+/// * other - the divisor
+///
+/// # Examples
+/// ```
+/// use simple_big_int::BigUInt;
+/// let mut bi = BigUInt::from_u32(0x80000000);
+/// let modulo = bi.div_mod_self(&BigUInt::from_u32(0x3000));
+/// assert_eq!(bi.to_hex_string(), "2AAAA");
+/// assert_eq!(modulo.to_hex_string(), "2000");
+/// ```
+#[inline]
+pub fn div_mod_self(&mut self, other: &BigUInt) -> BigUInt {
+    assert!(!other.is_zero(), "Division by zero");
+    match (*self).cmp(other) {
+        Ordering::Less => {
+            let res = self.clone();
+            self.length = 0;
+            self.bits.clear();
+            res
+        }
+        Ordering::Equal => {
+            self.length = 1;
+            self.bits.resize(1, 0);
+            self.bits[0] = 1;
+            BigUInt::new()
+        }
+        Ordering::Greater => {
+            let mut res = BigUInt::new();
+            let mut modulo = BigUInt::new();
+            for idx in (0..self.length).rev() {
+                modulo <<= 1;
+                modulo.set(0, self.get(idx).expect("Unexpected bit index out of range"));
+                if modulo >= *other {
+                    modulo.sub_from_self(other);
+                    res.set(idx, true);
+                }
+            }
+            self.length = res.length;
+            self.bits = res.bits;
+            modulo
+        }
+    }
+}
+
+/// Convert the BigUInt to a string of binary digits
+///
+/// # Examples
+/// ```
+/// use simple_big_int::BigUInt;
+/// let mut bi = BigUInt::from_u64(0xF0F0F0F0F0F0F0F0);
+/// assert_eq!(bi.to_bin_string(),"1111000011110000111100001111000011110000111100001111000011110000");
+/// ```
+
+pub fn to_bin_string(&self) -> String {
+    if self.is_zero() {
+        String::from('0')
+    } else {
+        let mut res = String::new();
+        for bit in self.iter() {
+            if bit {
+                res.push('1');
+            } else {
+                res.push('0');
+            }
+        }
+        res
+    }
+}
+
+/// Convert the BigUInt to a string of decimal digits
+///
+/// # Examples
+/// ```
+/// use simple_big_int::BigUInt;
+/// let bi = BigUInt::from_u64(0xAB54A98F81652440);
+/// assert_eq!(bi.to_dec_string(), "12345678912345678912");
+/// ```
+
+pub fn to_dec_string(&self) -> String {
+    let divisor = BigUInt::from_u32(10);
+    let mut res = vec![];
+    let mut work = self.clone();
+    while work >= divisor {
+        let modulo = work.div_mod_self(&divisor);
+        let digit = modulo.to_u64().expect("Unexpected big value in modulo");
+        res.push(HEX_DIGITS[digit as usize]);
+    }
+
+    if !work.is_zero() {
+        let digit = work.to_u64().expect("Unexpected big value in modulo");
+        res.push(HEX_DIGITS[digit as usize]);
+    }
+
+    if res.is_empty() {
+        String::from('0')
+    } else {
+        let mut str_res = String::new();
+        res.iter().rev().for_each(|ch| { str_res.push(*ch); });
+        str_res
+    }
+}
+
+/// Convert the BigUInt to a string of hexadecimal digits
+///
+/// # Examples
+/// ```
+/// use simple_big_int::BigUInt;
+/// let mut bi = BigUInt::from_u64(0xF0F0F0F0F0F0F0F0);
+/// assert_eq!(bi.to_hex_string(),"F0F0F0F0F0F0F0F0");
+/// ```
+
+pub fn to_hex_string(&self) -> String {
+    //eprintln!("to_hex_string: 0b{}", self.to_bin_string());
+    if self.is_zero() {
+        //eprintln!("to_hex_string: 0b{} - empty", self.to_bin_string());
+        String::from('0')
+    } else {
+        //eprintln!("to_hex_string: 0b{} - length: {}", self.to_bin_string(), self.length);
+        let mut res = String::new();
+        let mut digit = 0;
+        let offset = self.length - 1;
+        for (index, bit) in self.iter().enumerate() {
+            digit <<= 1;
+            if bit {
+                digit += 1;
+            }
+            //eprintln!("to_hex_string: 0b{} - loop idx: {}, value: {}, digit: {:x}", self.to_bin_string(), index, bit, digit);
+            if (offset - index) % 4 == 0 {
+                res.push(HEX_DIGITS[digit]);
+                digit = 0;
+            }
+        }
+        res
+    }
+}
+
+/// Trim any leading digits that contain no value (no bits set to 1)
+fn trim(&mut self) {
+    if self.length > 0 {
+        let mut blocks = 0;
+        let mut high_block = 0;
+        for (idx, block) in self.bits.iter().enumerate().rev() {
+            if *block > 0 {
+                blocks = idx + 1;
+                high_block = *block;
+                break;
+            }
+        }
+        if blocks == 0 {
             self.length = 0;
             self.bits.clear();
         } else {
-            let mut res_list = vec![];
-            for (idx1, block1) in other.bits.iter().enumerate() {
-                for (idx2, block2) in self.bits.iter().enumerate() {
-                    let mut res = BigUInt::from_u128(*block1 as u128 * *block2 as u128);
-                    res <<= (idx1 + idx2) * BLOCK_SIZE;
-                    res_list.push(res);
+            // TODO: use length to make more efficient
+            self.bits.resize(blocks, 0);
+            let mut length = 0usize;
+            for idx in (1..=64).rev() {
+                if high_block & 0x8000000000000000 == 0x8000000000000000 {
+                    length = idx;
+                    break;
+                } else {
+                    high_block <<= 1;
                 }
             }
-            let mut sum = BigUInt::new();
-            for res in res_list {
-                sum += res;
-            }
-            self.length = sum.length;
-            self.bits = sum.bits
+            self.length = (self.bits.len() - 1) * BLOCK_SIZE + length;
         }
     }
+}
 
-
-    /// Divide self by a divisor, return the result and the modulo.
-    /// Due to BigUInt not being able to implement the Copy trait and the std::ops::Div trait
-    /// consuming the right hand side operator the use of / can be inefficient, having to clone
-    /// the right hand side operator.
-    /// This function works around that restriction, it is used by the std::ops::Div implementation
-    ///
-    /// # Arguments
-    /// * other - the divisor
-    ///
-    /// # Returns
-    ///
-    /// A tuple containing the result of the division and the modulo
-    ///
-    /// # Examples
-    /// ```
-    /// use simple_big_int::BigUInt;
-    /// let bi = BigUInt::from_u32(0x80000000);
-    /// let (quotient,modulo) = bi.div_mod(&BigUInt::from_u32(0x3000));
-    /// assert_eq!(quotient.to_hex_string(), "2AAAA");
-    /// assert_eq!(modulo.to_hex_string(), "2000");
-    /// ```
-    #[inline]
-    pub fn div_mod(&self, other: &BigUInt) -> (BigUInt, BigUInt) {
-        assert!(!other.is_empty(), "Division by zero");
-        match (*self).cmp(other) {
-            Ordering::Less => {
-                (BigUInt::new(), self.clone())
-            }
-            Ordering::Equal => {
-                (BigUInt::from_u32(1), BigUInt::new())
-            }
+pub fn shift_out(&mut self, num_bits: usize) -> BigUInt {
+    // eprintln!("shift_out({},{}): length: {}", self.to_hex_string(), num_bits, self.length);
+    assert!(num_bits < self.length, "index out of range");
+    if num_bits == self.length {
+        let res = (*self).clone();
+        self.length = 0;
+        self.bits.clear();
+        res
+    } else {
+        let mut last_size = self.length % BLOCK_SIZE;
+        if last_size == 0 { last_size = BLOCK_SIZE; }
+        match last_size.cmp(&num_bits) {
             Ordering::Greater => {
-                /*
-                if D = 0 then error(DivisionByZeroException) end
-                    Q := 0                  -- Initialize quotient and remainder to zero
-                    R := 0
-                    for i := n − 1 .. 0 do  -- Where n is number of bits in N
-                    R := R << 1           -- Left-shift R by 1 bit
-                    R(0) := N(i)          -- Set the least-significant bit of R equal to bit i of the numerator
-                    if R ≥ D then
-                        R := R − D
-                        Q(i) := 1
-                    end
-                end
-                */
-                let mut res = BigUInt::new();
-                let mut modulo = BigUInt::new();
-                for idx in (0..self.length).rev() {
-                    modulo <<= 1;
-                    modulo.set(0, self.get(idx).expect("Unexpected bit index out of range"));
-                    if modulo >= *other {
-                        modulo.sub_from_self(other);
-                        res.set(idx, true);
-                    }
-                }
-                (res, modulo)
-            }
-        }
-    }
-
-    /// Divide self by a divisor, store the result in self and return the modulo.
-    /// Due to BigUInt not being able to implement the Copy trait and the std::ops::DivAssign trait
-    /// consuming the right hand side operator the use of /= can be inefficient, having to clone
-    /// the right hand side operator.
-    /// This function works around that restriction, it is used by the std::ops::DivAssign implementation
-    ///
-    /// # Arguments
-    /// * other - the divisor
-    ///
-    /// # Examples
-    /// ```
-    /// use simple_big_int::BigUInt;
-    /// let mut bi = BigUInt::from_u32(0x80000000);
-    /// let modulo = bi.div_mod_self(&BigUInt::from_u32(0x3000));
-    /// assert_eq!(bi.to_hex_string(), "2AAAA");
-    /// assert_eq!(modulo.to_hex_string(), "2000");
-    /// ```
-    #[inline]
-    pub fn div_mod_self(&mut self, other: &BigUInt) -> BigUInt {
-        assert!(!other.is_empty(), "Division by zero");
-        match (*self).cmp(other) {
-            Ordering::Less => {
-                let res = self.clone();
-                self.length = 0;
-                self.bits.clear();
+                // eprintln!("shift_out({},{}): Ordering::Greater", self.to_hex_string(), num_bits);
+                let last_idx = self.bits.len() - 1;
+                let last = &mut self.bits[last_idx];
+                // eprintln!("  last:\t{:b}", *last);
+                let mask = (BLOCK_MASK >> (BLOCK_SIZE - num_bits)) << (last_size - num_bits);
+                // eprintln!("  mask:\t{:b}", mask);
+                let res = BigUInt::from_u64((*last & mask) >> (last_size - num_bits));
+                // eprintln!("  res:\t{}", res.to_bin_string());
+                *last &= !mask;
+                // eprintln!("  rest:\t{:b}", *last);
+                self.length -= num_bits;
+                self.trim();
                 res
             }
             Ordering::Equal => {
-                self.length = 1;
-                self.bits.resize(1, 0);
-                self.bits[0] = 1;
-                BigUInt::new()
+                // eprintln!("shift_out({},{}): Ordering::Equal", self.to_hex_string(), num_bits);
+                let res = BigUInt::from_u64(*self.bits.last().expect("Unexpected empty BigUInt"));
+                self.length -= num_bits;
+                self.bits.resize(self.bits.len() - 1, 0);
+                res
             }
-            Ordering::Greater => {
-                let mut res = BigUInt::new();
-                let mut modulo = BigUInt::new();
-                for idx in (0..self.length).rev() {
-                    modulo <<= 1;
-                    modulo.set(0, self.get(idx).expect("Unexpected bit index out of range"));
-                    if modulo >= *other {
-                        modulo.sub_from_self(other);
-                        res.set(idx, true);
-                    }
-                }
-                self.length = res.length;
-                self.bits = res.bits;
-                modulo
-            }
-        }
-    }
-
-    /// Convert the BigUInt to a string of binary digits
-    ///
-    /// # Examples
-    /// ```
-    /// use simple_big_int::BigUInt;
-    /// let mut bi = BigUInt::from_u64(0xF0F0F0F0F0F0F0F0);
-    /// assert_eq!(bi.to_bin_string(),"1111000011110000111100001111000011110000111100001111000011110000");
-    /// ```
-
-    pub fn to_bin_string(&self) -> String {
-        if self.is_empty() {
-            String::from('0')
-        } else {
-            let mut res = String::new();
-            for bit in self.iter() {
-                if bit {
-                    res.push('1');
-                } else {
-                    res.push('0');
-                }
-            }
-            res
-        }
-    }
-
-    /// Convert the BigUInt to a string of decimal digits
-    ///
-    /// # Examples
-    /// ```
-    /// use simple_big_int::BigUInt;
-    /// let bi = BigUInt::from_u64(0xAB54A98F81652440);
-    /// assert_eq!(bi.to_dec_string(), "12345678912345678912");
-    /// ```
-
-    pub fn to_dec_string(&self) -> String {
-        let divisor = BigUInt::from_u32(10);
-        let mut res = vec![];
-        let mut work = self.clone();
-        while work >= divisor {
-            let modulo = work.div_mod_self(&divisor);
-            let digit = modulo.to_u64().expect("Unexpected big value in modulo");
-            res.push(HEX_DIGITS[digit as usize]);
-        }
-
-        if !work.is_empty() {
-            let digit = work.to_u64().expect("Unexpected big value in modulo");
-            res.push(HEX_DIGITS[digit as usize]);
-        }
-
-        if res.is_empty() {
-            String::from('0')
-        } else {
-            let mut str_res = String::new();
-            res.iter().rev().for_each(|ch| { str_res.push(*ch); });
-            str_res
-        }
-    }
-
-    /// Convert the BigUInt to a string of hexadecimal digits
-    ///
-    /// # Examples
-    /// ```
-    /// use simple_big_int::BigUInt;
-    /// let mut bi = BigUInt::from_u64(0xF0F0F0F0F0F0F0F0);
-    /// assert_eq!(bi.to_hex_string(),"F0F0F0F0F0F0F0F0");
-    /// ```
-
-    pub fn to_hex_string(&self) -> String {
-        //eprintln!("to_hex_string: 0b{}", self.to_bin_string());
-        if self.is_empty() {
-            //eprintln!("to_hex_string: 0b{} - empty", self.to_bin_string());
-            String::from('0')
-        } else {
-            //eprintln!("to_hex_string: 0b{} - length: {}", self.to_bin_string(), self.length);
-            let mut res = String::new();
-            let mut digit = 0;
-            let offset = self.length - 1;
-            for (index, bit) in self.iter().enumerate() {
-                digit <<= 1;
-                if bit {
-                    digit += 1;
-                }
-                //eprintln!("to_hex_string: 0b{} - loop idx: {}, value: {}, digit: {:x}", self.to_bin_string(), index, bit, digit);
-                if (offset - index) % 4 == 0 {
-                    res.push(HEX_DIGITS[digit]);
-                    digit = 0;
-                }
-            }
-            res
-        }
-    }
-
-    /// Trim any leading digits that contain no value (no bits set to 1)
-    fn trim(&mut self) {
-        if self.length > 0 {
-            let mut blocks = 0;
-            let mut high_block = 0;
-            for (idx, block) in self.bits.iter().enumerate().rev() {
-                if *block > 0 {
-                    blocks = idx + 1;
-                    high_block = *block;
-                    break;
-                }
-            }
-            if blocks == 0 {
-                self.length = 0;
-                self.bits.clear();
-            } else {
-                // TODO: use length to make more efficient
-                self.bits.resize(blocks, 0);
-                let mut length = 0usize;
-                for idx in (1..=64).rev() {
-                    if high_block & 0x8000000000000000 == 0x8000000000000000 {
-                        length = idx;
-                        break;
-                    } else {
-                        high_block <<= 1;
-                    }
-                }
-                self.length = (self.bits.len() - 1) * BLOCK_SIZE + length;
-            }
-        }
-    }
-
-    pub fn shift_out(&mut self, num_bits: usize) -> BigUInt {
-        // eprintln!("shift_out({},{}): length: {}", self.to_hex_string(), num_bits, self.length);
-        assert!(num_bits < self.length, "index out of range");
-        if num_bits == self.length {
-            let res = (*self).clone();
-            self.length = 0;
-            self.bits.clear();
-            res
-        } else {
-            let mut last_size = self.length % BLOCK_SIZE;
-            if last_size == 0 { last_size = BLOCK_SIZE; }
-            match last_size.cmp(&num_bits) {
-                Ordering::Greater => {
-                    // eprintln!("shift_out({},{}): Ordering::Greater", self.to_hex_string(), num_bits);
-                    let last_idx = self.bits.len() - 1;
-                    let last = &mut self.bits[last_idx];
-                    // eprintln!("  last:\t{:b}", *last);
-                    let mask = (BLOCK_MASK >> (BLOCK_SIZE - num_bits)) << (last_size - num_bits);
-                    // eprintln!("  mask:\t{:b}", mask);
-                    let res = BigUInt::from_u64((*last & mask) >> (last_size - num_bits));
-                    // eprintln!("  res:\t{}", res.to_bin_string());
-                    *last &= !mask;
-                    // eprintln!("  rest:\t{:b}", *last);
-                    self.length -= num_bits;
-                    self.trim();
-                    res
-                }
-                Ordering::Equal => {
-                    // eprintln!("shift_out({},{}): Ordering::Equal", self.to_hex_string(), num_bits);
-                    let res = BigUInt::from_u64(*self.bits.last().expect("Unexpected empty BigUInt"));
-                    self.length -= num_bits;
-                    self.bits.resize(self.bits.len() - 1, 0);
-                    res
-                }
-                Ordering::Less => {
-                    // eprintln!("shift_out({},{}): Ordering::Less", self.to_hex_string(), num_bits);
-                    let mut rest = num_bits;
-                    let mut block_idx = self.bits.len() - 1;
-                    let mut res = BigUInt::from_u64(self.bits[block_idx]);
-                    // eprintln!("self:\t{}", self.to_bin_string());
-                    // eprintln!("res:\t{}", res.to_bin_string());
+            Ordering::Less => {
+                // eprintln!("shift_out({},{}): Ordering::Less", self.to_hex_string(), num_bits);
+                let mut rest = num_bits;
+                let mut block_idx = self.bits.len() - 1;
+                let mut res = BigUInt::from_u64(self.bits[block_idx]);
+                // eprintln!("self:\t{}", self.to_bin_string());
+                // eprintln!("res:\t{}", res.to_bin_string());
+                block_idx -= 1;
+                rest -= last_size;
+                // eprintln!("rest:\t{}", rest);
+                while rest >= BLOCK_SIZE {
+                    res <<= BLOCK_SIZE;
+                    res.bits[0] = self.bits[block_idx];
                     block_idx -= 1;
-                    rest -= last_size;
+                    rest -= BLOCK_SIZE;
+                    // eprintln!("res:\t{}", res.to_bin_string());
                     // eprintln!("rest:\t{}", rest);
-                    while rest >= BLOCK_SIZE {
-                        res <<= BLOCK_SIZE;
-                        res.bits[0] = self.bits[block_idx];
-                        block_idx -= 1;
-                        rest -= BLOCK_SIZE;
-                        // eprintln!("res:\t{}", res.to_bin_string());
-                        // eprintln!("rest:\t{}", rest);
-                    }
-
-                    if rest > 0 {
-                        let mask = BLOCK_MASK << (BLOCK_SIZE - rest);
-                        // eprintln!("mask:\t{:b}", mask);
-                        // eprintln!("from:\t{:b}", self.bits[block_idx]);
-                        res <<= rest;
-                        res.bits[0] |= (self.bits[block_idx] & mask) >> (BLOCK_SIZE - rest);
-                        // eprintln!("res:\t{}", res.to_bin_string());
-                        self.bits[block_idx] &= !mask;
-                    }
-                    self.length -= num_bits;
-                    self.bits.resize(self.length / BLOCK_SIZE + if self.length % BLOCK_SIZE > 0 { 1 } else { 0 }, 0);
-                    self.trim();
-                    // eprintln!("self:\t{}", self.to_bin_string());
-                    res
                 }
+
+                if rest > 0 {
+                    let mask = BLOCK_MASK << (BLOCK_SIZE - rest);
+                    // eprintln!("mask:\t{:b}", mask);
+                    // eprintln!("from:\t{:b}", self.bits[block_idx]);
+                    res <<= rest;
+                    res.bits[0] |= (self.bits[block_idx] & mask) >> (BLOCK_SIZE - rest);
+                    // eprintln!("res:\t{}", res.to_bin_string());
+                    self.bits[block_idx] &= !mask;
+                }
+                self.length -= num_bits;
+                self.bits.resize(self.length / BLOCK_SIZE + if self.length % BLOCK_SIZE > 0 { 1 } else { 0 }, 0);
+                self.trim();
+                // eprintln!("self:\t{}", self.to_bin_string());
+                res
             }
         }
     }
+}
 
-    #[inline]
-    pub fn is_even(&self) -> bool {
-        self.is_empty() || ((self.bits[0] & 0x1) == 0)
-    }
+#[inline]
+pub fn is_even(&self) -> bool {
+    self.is_zero() || ((self.bits[0] & 0x1) == 0)
+}
 
-    #[inline]
-    pub fn is_odd(&self) -> bool {
-        !self.is_even()
-    }
-
+#[inline]
+pub fn is_odd(&self) -> bool {
+    !self.is_even()
+}
 }
 
 impl Default for BigUInt {

@@ -1,7 +1,7 @@
-use std::ops::{Shl, ShlAssign, BitAnd, BitAndAssign, BitOrAssign, BitOr, AddAssign, Add, SubAssign, Sub, MulAssign, Mul, DivAssign, Div};
+use std::ops::{Shl, ShlAssign, BitAnd, BitAndAssign, BitOrAssign, BitOr, AddAssign, Add, SubAssign, Sub, MulAssign, Mul, DivAssign, Div, Shr, ShrAssign};
 use std::cmp::Ordering;
 
-use super::{BigUInt, BLOCK_SIZE, BLOCK_MASK};
+use super::BigUInt;
 use std::fmt::{Display, Formatter, Debug};
 use crate::BigInt;
 use std::convert::TryFrom;
@@ -21,7 +21,7 @@ impl Ord for BigUInt {
             Ordering::Greater => Ordering::Greater,
             Ordering::Less => Ordering::Less,
             Ordering::Equal => {
-                for (block1, block2) in self.bits.iter().zip(other.bits.iter()) {
+                for (block1, block2) in self.bits.iter().rev().zip(other.bits.iter().rev()) {
                     match block1.cmp(block2) {
                         Ordering::Greater => return Ordering::Greater,
                         Ordering::Less => return Ordering::Less,
@@ -94,80 +94,42 @@ impl DivAssign for BigUInt {
     }
 }
 
-impl ShlAssign<usize> for BigUInt {
-    fn shl_assign(&mut self, rhs: usize) {
-        if rhs == 0 || self.is_empty() {} else {
-            let new_length = self.length + rhs;
-            let old_blocks = self.bits.len();
-            if rhs / BLOCK_SIZE > 0 {
-                let mut bits = vec![0; rhs / BLOCK_SIZE];
-                bits.extend(self.bits.iter());
-                self.bits = bits;
-            }
-
-            if new_length > self.bits.len() * BLOCK_SIZE {
-                self.bits.push(0);
-            }
-
-            assert!(self.bits.len() * BLOCK_SIZE >= new_length);
-            let shift = rhs % BLOCK_SIZE;
-            if shift > 0 {
-                let rev_shift = BLOCK_SIZE - shift;
-                let mask = BLOCK_MASK << rev_shift;
-
-
-                let min = usize::max(self.bits.len() - old_blocks, 1);
-
-                for idx in (min..self.bits.len()).rev() {
-                    self.bits[idx] <<= shift;
-                    self.bits[idx] |= (self.bits[idx - 1] & mask) >> rev_shift;
-                }
-                self.bits[min - 1] <<= shift;
-            }
-            self.length = new_length;
-        }
-    }
-}
 
 impl Shl<usize> for BigUInt {
     type Output = BigUInt;
 
     fn shl(self, rhs: usize) -> Self::Output {
-        if rhs == 0 || self.is_empty() {
+        if rhs == 0 {
             self
         } else {
-            let new_length = self.length + rhs;
-            let mut bits = if rhs / BLOCK_SIZE > 0 {
-                let mut bits = vec![0; rhs / BLOCK_SIZE];
-                bits.extend(self.bits.iter());
-                bits
-            } else {
-                self.bits.clone()
-            };
-
-            if new_length > bits.len() * BLOCK_SIZE {
-                bits.push(0);
-            }
-            assert!(bits.len() * BLOCK_SIZE >= new_length);
-            let shift = rhs % BLOCK_SIZE;
-            if shift > 0 {
-                let rev_shift = BLOCK_SIZE - shift;
-                let mask = BLOCK_MASK << rev_shift;
-
-                let min = usize::max(bits.len() - self.bits.len(), 1);
-
-                for idx in (min..bits.len()).rev() {
-                    bits[idx] <<= shift;
-                    bits[idx] |= (bits[idx - 1] & mask) >> rev_shift;
-                }
-                bits[min - 1] <<= shift;
-            }
-
-            BigUInt {
-                length: new_length,
-                bits,
-            }
+            self.left_shift(rhs)
         }
+    }
+}
+
+impl ShlAssign<usize> for BigUInt {
+    fn shl_assign(&mut self, rhs: usize) {
+        self.left_shift_self(rhs)
+    }
+}
+
+
+
+impl Shr<usize> for BigUInt {
+    type Output = BigUInt;
+
+    fn shr(self, rhs: usize) -> Self::Output {
+        if rhs == 0 {
+            self
+        } else {
+            self.right_shift(rhs)
+        }
+    }
+}
+
+impl ShrAssign<usize> for BigUInt {
+    fn shr_assign(&mut self, rhs: usize) {
+        self.right_shift_self(rhs)
     }
 }
 

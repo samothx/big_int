@@ -1,17 +1,17 @@
 use std::cmp::Ordering;
-
+use rand::Rng;
 use super::{BigUInt, BIT_64};
 
 #[test]
 fn test_from_u8() {
     let bf = BigUInt::from_u8(0);
-    assert!(bf.is_empty());
+    assert!(bf.is_zero());
     let bf = BigUInt::from_u8(1);
-    assert!(!bf.is_empty());
+    assert!(!bf.is_zero());
     assert_eq!(bf.length(), 1);
     assert_eq!(bf.to_bin_string(), "1");
     let bf = BigUInt::from_u8(0x80);
-    assert!(!bf.is_empty());
+    assert!(!bf.is_zero());
     assert_eq!(bf.length(), 8);
     assert_eq!(bf.to_bin_string(), "10000000");
     assert_eq!(bf.to_hex_string(), "80");
@@ -20,13 +20,13 @@ fn test_from_u8() {
 #[test]
 fn test_from_u16() {
     let bf = BigUInt::from_u16(0);
-    assert!(bf.is_empty());
+    assert!(bf.is_zero());
     let bf = BigUInt::from_u16(1);
-    assert!(!bf.is_empty());
+    assert!(!bf.is_zero());
     assert_eq!(bf.length(), 1);
     assert_eq!(bf.to_bin_string(), "1");
     let bf = BigUInt::from_u16(0x8000);
-    assert!(!bf.is_empty());
+    assert!(!bf.is_zero());
     assert_eq!(bf.length(), 16);
     assert_eq!(bf.to_bin_string(), "1000000000000000");
 }
@@ -34,13 +34,13 @@ fn test_from_u16() {
 #[test]
 fn test_from_u32() {
     let bf = BigUInt::from_u32(0);
-    assert!(bf.is_empty());
+    assert!(bf.is_zero());
     let bf = BigUInt::from_u32(1);
-    assert!(!bf.is_empty());
+    assert!(!bf.is_zero());
     assert_eq!(bf.length(), 1);
     assert_eq!(bf.to_bin_string(), "1");
     let bf = BigUInt::from_u32(0x80000000);
-    assert!(!bf.is_empty());
+    assert!(!bf.is_zero());
     assert_eq!(bf.length(), 32);
     assert_eq!(bf.to_hex_string(), "80000000");
 }
@@ -48,13 +48,13 @@ fn test_from_u32() {
 #[test]
 fn test_from_u64() {
     let bf = BigUInt::from_u64(0);
-    assert!(bf.is_empty());
+    assert!(bf.is_zero());
     let bf = BigUInt::from_u64(1);
-    assert!(!bf.is_empty());
+    assert!(!bf.is_zero());
     assert_eq!(bf.length(), 1);
     assert_eq!(bf.to_bin_string(), "1");
     let bf = BigUInt::from_u64(0x8000000000000000);
-    assert!(!bf.is_empty());
+    assert!(!bf.is_zero());
     assert_eq!(bf.length(), 64);
     assert_eq!(bf.to_hex_string(), "8000000000000000");
 }
@@ -62,13 +62,13 @@ fn test_from_u64() {
 #[test]
 fn test_from_u128() {
     let bf = BigUInt::from_u128(0);
-    assert!(bf.is_empty());
+    assert!(bf.is_zero());
     let bf = BigUInt::from_u128(1);
-    assert!(!bf.is_empty());
+    assert!(!bf.is_zero());
     assert_eq!(bf.length(), 1);
     assert_eq!(bf.to_bin_string(), "1");
     let bf = BigUInt::from_u128(0x80000000000000000000000000000000);
-    assert!(!bf.is_empty());
+    assert!(!bf.is_zero());
     assert_eq!(bf.length(), 128);
     assert_eq!(bf.to_hex_string(), "80000000000000000000000000000000");
 }
@@ -90,7 +90,7 @@ fn test_to_hex_string() {
 }
 
 #[test]
-fn test_shift() {
+fn test_left_shift() {
     let bf = BigUInt::from_u64(0x1);
     let res = bf << 1;
     assert_eq!(res.to_hex_string(), "2");
@@ -111,7 +111,7 @@ fn test_shift() {
 }
 
 #[test]
-fn test_shift_assign() {
+fn test_left_shift_assign() {
     let mut bf = BigUInt::from_u64(0x1);
     bf <<= 1;
     assert_eq!(bf.to_hex_string(), "2");
@@ -129,6 +129,55 @@ fn test_shift_assign() {
     let mut bf = BigUInt::from_u64(0x739CE739CE739CE7);
     bf <<= 64;
     assert_eq!(bf.to_bin_string(), format!("{:b}", 0x739CE739CE739CE7u128 << 64));
+}
+
+
+#[test]
+fn test_right_shift() {
+    let bi: BigUInt = 0x1u32.into();
+    assert!((bi >> 1).is_zero());
+
+    let bi: BigUInt = 0x1u32.into();
+    assert_eq!(bi >> 0, 0x1u32.into());
+
+    let bi: BigUInt = 0xF0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0u128.into();
+    assert_eq!(bi >> 3, 0x1E1E1E1E1E1E1E1E1E1E1E1E1E1E1E1Eu128.into());
+
+    let bi: BigUInt = 0xF0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0u128.into();
+    assert_eq!(bi >> 64, 0xF0F0F0F0F0F0F0F0u128.into());
+
+    let bi: BigUInt = 0xE7E7E7E7E7E7E7E7E7E7E7E7E7E7E7E7u128.into();
+    assert_eq!(bi >> 3, 0x1CFCFCFCFCFCFCFCFCFCFCFCFCFCFCFCu128.into());
+
+    let bi: BigUInt = 0xF0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0u128.into();
+    assert_eq!(bi >> 67, 0x1E1E1E1E1E1E1E1Eu128.into());
+}
+
+#[test]
+fn test_right_shift_self() {
+    let mut bi: BigUInt = 0x1u32.into();
+    bi >>= 1;
+    assert!(bi.is_zero());
+
+    let mut bi: BigUInt = 0x1u32.into();
+    bi >>= 0;
+    assert_eq!(bi, 0x1u32.into());
+
+    let mut bi: BigUInt = 0xF0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0u128.into();
+    bi >>= 3;
+    assert_eq!(bi, 0x1E1E1E1E1E1E1E1E1E1E1E1E1E1E1E1Eu128.into());
+
+    let mut bi: BigUInt = 0xF0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0u128.into();
+    bi >>= 64;
+    assert_eq!(bi, 0xF0F0F0F0F0F0F0F0u128.into());
+
+    let mut bi: BigUInt = 0xE7E7E7E7E7E7E7E7E7E7E7E7E7E7E7E7u128.into();
+    bi >>= 3;
+    assert_eq!(bi, 0x1CFCFCFCFCFCFCFCFCFCFCFCFCFCFCFCu128.into());
+
+    let mut bi: BigUInt = 0xF0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0u128.into();
+    bi >>= 67;
+    assert_eq!(bi, 0x1E1E1E1E1E1E1E1Eu128.into());
 }
 
 #[test]
@@ -157,6 +206,47 @@ fn test_or() {
     assert_eq!(bf1.to_bin_string(), format!("{:b}", 0xF0F0F0F0F0F0F0F0u128 | 0x3C3C3C3C3C3C3C3Cu128));
 }
 
+
+#[test]
+fn test_gcd() {
+    let bi1: BigUInt = 5u32.into();
+    let bi2: BigUInt = 7u32.into();
+    assert_eq!(bi1.gcd(&bi2), 1u32.into());
+
+    let bi1: BigUInt = 5u32.into();
+    let bi2: BigUInt = 25u32.into();
+    assert_eq!(bi1.gcd(&bi2), 5u32.into());
+
+    let mut rng = rand::thread_rng();
+
+    let gcd: BigUInt = rng.gen_range(0xFFFFFFFF00000000u64..=0xFFFFFFFFFFFFFFFFu64).into();
+    // eprintln!("gcd: {:?}, {}", gcd, gcd);
+
+    let nums: Vec<BigUInt> = (0..4).map(|_| {
+        rng.gen_range(0..0x80000000u64).into()
+    }).collect();
+    let mut bi1 = gcd.clone();
+    (1..5u32).zip(nums.iter()).for_each(|(offset,num)|{ bi1 *= num.add_to( &offset.into()); });
+    // eprintln!("bi1: {:?}, {}", bi1, bi1);
+    let (_,modulo) = bi1.div_mod(&gcd);
+    assert!(modulo.is_zero());
+    let mut bi2 = gcd.clone();
+    (5..10u32).zip(nums.iter()).for_each(|(offset,num)|{ bi2 *= num.add_to( &offset.into()); });
+    let (_,modulo) = bi2.div_mod(&gcd);
+    assert!(modulo.is_zero());
+    let wrong_gcd = gcd.add_to(&1u32.into());
+    let (_,modulo) = bi2.div_mod(&wrong_gcd);
+    assert!(!modulo.is_zero());
+    // eprintln!("bi2: {:?}, {}", bi2, bi2);
+    let calc_gcd = bi1.gcd(&bi2);
+    let (_,modulo) = bi1.div_mod(&calc_gcd);
+    assert!(modulo.is_zero());
+    let (_,modulo) = bi2.div_mod(&calc_gcd);
+    assert!(modulo.is_zero());
+    if gcd != calc_gcd {
+        assert!(gcd < calc_gcd);
+    }
+}
 
 #[test]
 fn test_add() {
@@ -274,6 +364,30 @@ fn test_set() {
 }
 
 #[test]
+fn test_from_hex_str() {
+    let bi = BigUInt::from_hex_str("1234567890")
+        .expect("failed to convert from hex");
+    assert_eq!(bi.to_hex_string(), "1234567890");
+
+    let bi = BigUInt::from_hex_str("1234567890ABCDEF")
+        .expect("failed to convert from hex");
+    assert_eq!(bi.to_hex_string(), "1234567890ABCDEF");
+
+    let bi = BigUInt::from_hex_str("1234567890ABCDEF1")
+        .expect("failed to convert from hex");
+    assert_eq!(bi.to_hex_string(), "1234567890ABCDEF1");
+
+    let bi = BigUInt::from_hex_str("113572E4620B646BD672F2DEDCF983AC855B8ABAD93F")
+        .expect("failed to convert from hex");
+    assert_eq!(bi.to_hex_string(), "113572E4620B646BD672F2DEDCF983AC855B8ABAD93F");
+
+    let bi = BigUInt::from_hex_str("169626BF76566EDF05BAFBCE9A13390D3F79FB6BD673")
+        .expect("failed to convert from hex");
+    assert_eq!(bi.to_hex_string(), "169626BF76566EDF05BAFBCE9A13390D3F79FB6BD673");
+}
+
+
+#[test]
 fn test_cmp() {
     let bi1 = BigUInt::from_u32(0x2000);
     let bi2 = BigUInt::from_u32(0x2000);
@@ -283,6 +397,9 @@ fn test_cmp() {
     let bi2 = BigUInt::from_u32(0x1000);
     assert_eq!(bi1.cmp(&bi2), Ordering::Greater);
 
+    let bi1 = BigUInt::from_hex_str("113572E4620B646BD672F2DEDCF983AC855B8ABAD93F");
+    let bi2 = BigUInt::from_hex_str("169626BF76566EDF05BAFBCE9A13390D3F79FB6BD673");
+    assert!(bi1 < bi2);
 }
 
 #[test]
