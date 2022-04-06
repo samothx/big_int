@@ -112,6 +112,47 @@ fn test_subtract_from_self() {
 
 }
 
+#[test]
+fn test_mul() {
+    let bi1: BigInt = 20.into();
+    let bi2: BigInt = 20.into();
+    assert_eq!(bi1 * bi2, 400.into());
+
+    let bi1: BigInt = (-20).into();
+    let bi2: BigInt = 20.into();
+    assert_eq!(bi1 * bi2, (-400).into());
+
+    let bi1: BigInt = (-20).into();
+    let bi2: BigInt = (-20).into();
+    assert_eq!(bi1 * bi2, 400.into());
+
+    let bi1: BigInt = 0x7FFFFFFFFFFFFFFFi64.into();
+    let bi2: BigInt = 0x4.into();
+    assert_eq!((bi1 * bi2).to_i128(),Some(0x1FFFFFFFFFFFFFFFC));
+}
+
+#[test]
+fn test_mul_assign() {
+    let mut bi1: BigInt = 20.into();
+    let bi2: BigInt = 20.into();
+    bi1 *= bi2;
+    assert_eq!(bi1, 400.into());
+
+    let mut bi1: BigInt = (-20).into();
+    let bi2: BigInt = 20.into();
+    bi1 *= bi2;
+    assert_eq!(bi1, (-400).into());
+
+    let mut bi1: BigInt = (-20).into();
+    let bi2: BigInt = (-20).into();
+    bi1 *= bi2;
+    assert_eq!(bi1, 400.into());
+
+    let mut bi1: BigInt = 0x7FFFFFFFFFFFFFFFi64.into();
+    let bi2: BigInt = 0x4.into();
+    bi1 *= bi2;
+    assert_eq!(bi1.to_i128(),Some(0x1FFFFFFFFFFFFFFFC));
+}
 
 #[test]
 fn test_from_i128() {

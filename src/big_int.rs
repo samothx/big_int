@@ -23,6 +23,7 @@ impl BigInt {
     /// use simple_big_int::BigInt;
     /// let bi = BigInt::new();
     /// ```
+    #[inline]
     pub fn new() -> BigInt {
         BigInt {
             signed: false,
@@ -41,6 +42,7 @@ impl BigInt {
     /// let bi = BigInt::from_i8(0x7F);
     /// assert_eq!(bi.to_i64(),Some(0x7F));
     /// ```
+    #[inline]
     pub fn from_i8(from: i8) -> BigInt {
         BigInt {
             signed: if from >= 0 { false } else { true },
@@ -60,6 +62,7 @@ impl BigInt {
     /// let bi = BigInt::from_i16(0x7FFF);
     /// assert_eq!(bi.to_i64(),Some(0x7FFF));
     /// ```
+    #[inline]
     pub fn from_i16(from: i16) -> BigInt {
         BigInt {
             signed: if from >= 0 { false } else { true },
@@ -80,7 +83,7 @@ impl BigInt {
     /// let bi = BigInt::from_i32(0x7FFFFFFF);
     /// assert_eq!(bi.to_i64(),Some(0x7FFFFFFF));
     /// ```
-
+    #[inline]
     pub fn from_i32(from: i32) -> BigInt {
         BigInt {
             signed: if from >= 0 { false } else { true },
@@ -100,7 +103,7 @@ impl BigInt {
     /// let bi = BigInt::from_i64(0x7FFFFFFFFFFFFFFF);
     /// assert_eq!(bi.to_i64(),Some(0x7FFFFFFFFFFFFFFF));
     /// ```
-
+    #[inline]
     pub fn from_i64(from: i64) -> BigInt {
         if from as u64 == 0xFFFFFFFFFFFFFFFF {
             BigInt {
@@ -127,7 +130,7 @@ impl BigInt {
     /// let bi = BigInt::from_i128(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
     /// assert_eq!(bi.to_i128(),Some(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF));
     /// ```
-
+    #[inline]
     pub fn from_i128(from: i128) -> BigInt {
         if from as u128 == 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF {
             BigInt {
@@ -153,6 +156,7 @@ impl BigInt {
     /// let bi = BigInt::from_i64(0x7FFFFFFFFFFFFFFF);
     /// assert_eq!(bi.to_i64(),Some(0x7FFFFFFFFFFFFFFF));
     /// ```
+    #[inline]
     pub fn to_i64(&self) -> Option<i64> {
         if self.uint.is_empty() {
             Some(0)
@@ -183,6 +187,7 @@ impl BigInt {
     /// let bi = BigInt::from_i128(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
     /// assert_eq!(bi.to_i128(),Some(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF));
     /// ```
+    #[inline]
     pub fn to_i128(&self) -> Option<i128> {
         if self.uint.is_empty() {
             Some(0)
@@ -219,6 +224,7 @@ impl BigInt {
     /// let bi2 = BigInt::from(20);
     /// assert_eq!(bi1.add_to(&bi2).to_dec_str(),"30");
     /// ```
+    #[inline]
     pub fn add_to(&self, other: &Self) -> BigInt {
         if self.signed == other.signed {
             // both same signed, just add & keep sign
@@ -253,6 +259,7 @@ impl BigInt {
     /// bi1.add_to_self(&bi2);
     /// assert_eq!(bi1.to_dec_str(),"30");
     /// ```
+    #[inline]
     pub fn add_to_self(&mut self, other: &Self) {
         if self.signed == other.signed {
             // same sign - just add & keep sign
@@ -266,6 +273,7 @@ impl BigInt {
         }
     }
 
+    #[inline]
     fn sub_from_unsigned(&self, other: &Self) -> BigInt {
         if self.uint > other.uint {
             BigInt{
@@ -283,7 +291,7 @@ impl BigInt {
         }
     }
 
-    /// Subtract one BigInt to another
+    /// Subtract one BigInt from another
     ///
     /// Due to BigInt not being able to implement the Copy trait and the std::ops::Sub trait
     /// consuming the right hand side operator, the use of - can be inefficient having to clone
@@ -300,7 +308,7 @@ impl BigInt {
     /// let bi2 = BigInt::from(20);
     /// assert_eq!(bi1.sub_from(&bi2).to_dec_str(),"-10");
     /// ```
-
+    #[inline]
     pub fn sub_from(&self, other: &Self) -> BigInt {
         if self.signed == other.signed {
             self.sub_from_unsigned(other)
@@ -312,6 +320,7 @@ impl BigInt {
         }
     }
 
+    #[inline]
     fn sub_from_self_unsigned(&mut self, other: &Self) {
         match (self.uint).cmp(&other.uint) {
             Ordering::Greater => {
@@ -329,6 +338,25 @@ impl BigInt {
         }
     }
 
+    /// Subtract one BigInt from another and store the result in self
+    ///
+    /// Due to BigInt not being able to implement the Copy trait and the std::ops::SubAssign trait
+    /// consuming the right hand side operator, the use of -= can be inefficient having to clone
+    /// the right hand side operator.
+    /// This function works around that restriction, it is used by the std::ops::SubAssign implementation
+    ///
+    /// # Returns
+    /// The result of the subtraction in self
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigInt;
+    /// let mut bi1 = BigInt::from(10);
+    /// let bi2 = BigInt::from(20);
+    /// bi1 -= bi2;
+    /// assert_eq!(bi1.to_dec_str(),"-10");
+    /// ```
+    #[inline]
     pub fn sub_from_self(&mut self, other: &Self) {
         if self.signed == other.signed {
             self.sub_from_self_unsigned(other)
@@ -337,31 +365,72 @@ impl BigInt {
         }
     }
 
+
+    /// Return the value of the BigInt as a decimal string
+    ///
+    /// # Returns
+    /// The value of the BigInt as a decimal string
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigInt;
+    /// let mut bi1 = BigInt::from(10);
+    /// assert_eq!(bi1.to_dec_str(),"10");
+    /// ```
+    #[inline]
     pub fn to_dec_str(&self) -> String {
         format!("{}{}", if self.signed { "-" } else { "" }, self.uint.to_dec_string())
     }
 
+    #[inline]
+    pub fn mul_with(&self, other: &Self) -> Self {
+        BigInt {
+            signed: self.signed ^ other.signed,
+            uint: self.uint.mul_with(&other.uint)
+        }
+    }
+
+    #[inline]
+    pub fn mul_with_self(&mut self, other: &Self) {
+        self.signed = self.signed ^ other.signed;
+        self.uint.mul_with_self(&other.uint);
+    }
+
+    #[inline]
     pub fn is_positive(&self) -> bool {
         !self.signed
     }
 
+    #[inline]
     pub fn is_negative(&self) -> bool {
         self.signed
     }
 
+    #[inline]
     pub fn set_positive(&mut self) {
         self.signed = false;
     }
 
+    #[inline]
     pub fn set_negative(&mut self) {
         self.signed = true;
     }
 
+    #[inline]
     pub fn reverse_sign(&mut self) {
         self.signed = !self.signed;
     }
 
-    pub fn to_unsigned(self) -> BigUInt {
+    #[inline]
+    pub fn abs(&self) -> BigInt {
+        BigInt{
+            signed: false,
+            uint: self.uint.clone()
+        }
+    }
+
+    #[inline]
+    pub fn as_unsigned(self) -> BigUInt {
         self.uint
     }
 }

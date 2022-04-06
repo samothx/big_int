@@ -12,6 +12,7 @@ pub const HEX_DIGITS: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8',
 mod traits;
 pub use traits::*;
 
+
 #[cfg(test)]
 mod test;
 
@@ -31,6 +32,7 @@ impl BigUInt {
     /// use simple_big_int::BigUInt;
     /// let bi = BigUInt::new();
     /// ```
+    #[inline]
     pub fn new() -> BigUInt {
         BigUInt {
             length: 0,
@@ -50,6 +52,7 @@ impl BigUInt {
     /// let bi = BigUInt::from_u8(0xFF);
     /// assert_eq!(bi.to_hex_string(),"FF");
     /// ```
+    #[inline]
     pub fn from_u8(from: u8) -> BigUInt {
         if from > 0 {
             let mut work = from;
@@ -84,6 +87,7 @@ impl BigUInt {
     /// let bi = BigUInt::from_u16(0xFFFF);
     /// assert_eq!(bi.to_hex_string(),"FFFF");
     /// ```
+    #[inline]
     pub fn from_u16(from: u16) -> BigUInt {
         if from > 0 {
             let mut work = from;
@@ -118,7 +122,7 @@ impl BigUInt {
     /// let bi = BigUInt::from_u32(0xFFFFFFFF);
     /// assert_eq!(bi.to_hex_string(),"FFFFFFFF");
     /// ```
-
+    #[inline]
     pub fn from_u32(from: u32) -> BigUInt {
         if from > 0 {
             let mut work = from;
@@ -153,7 +157,7 @@ impl BigUInt {
     /// let bi = BigUInt::from_u64(0xFFFFFFFFFFFFFFFF);
     /// assert_eq!(bi.to_hex_string(),"FFFFFFFFFFFFFFFF");
     /// ```
-
+    #[inline]
     pub fn from_u64(from: u64) -> BigUInt {
         if from > 0 {
             let mut work = from;
@@ -188,7 +192,7 @@ impl BigUInt {
     /// let bi = BigUInt::from_u128(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
     /// assert_eq!(bi.to_hex_string(),"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
     /// ```
-
+    #[inline]
     pub fn from_u128(from: u128) -> BigUInt {
         if from > 0 {
             let (bits, mut high_block) = if from > BLOCK_MASK as u128 {
@@ -235,7 +239,7 @@ impl BigUInt {
     /// let bi = BigUInt::from_u64(0xFFFFFFFFFFFFFFFF);
     /// assert_eq!(bi.to_u64(),Some(0xFFFFFFFFFFFFFFFF));
     /// ```
-
+    #[inline]
     pub fn to_u64(&self) -> Option<u64> {
         if self.is_empty() {
             Some(0)
@@ -257,7 +261,7 @@ impl BigUInt {
     /// let bi = BigUInt::from_u128(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
     /// assert_eq!(bi.to_u128(),Some(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF));
     /// ```
-
+    #[inline]
     pub fn to_u128(&self) -> Option<u128> {
         if self.is_empty() {
             Some(0)
@@ -280,7 +284,7 @@ impl BigUInt {
     /// let bi = BigUInt::from_u32(0xFFFFFFF);
     /// assert_eq!(bi.length(), 28);
     /// ```
-
+    #[inline]
     pub fn length(&self) -> usize {
         self.length
     }
@@ -293,7 +297,7 @@ impl BigUInt {
     /// let bi = BigUInt::from_u32(0xFFFFFFF);
     /// assert!(!bi.is_empty());
     /// ```
-
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.length == 0
     }
@@ -478,6 +482,7 @@ impl BigUInt {
     ///  let mut bi = BigUInt::from_u128(0xF0F0F0F0F0F0F0F0F0F0F0F0F0F0F0F0);
     ///  assert_eq!(bi.add_to(&BigUInt::from_u32(0x0F0F)).to_hex_string(),"F0F0F0F0F0F0F0F0F0F0F0F0F0F0FFFF");
     /// ```
+    #[inline]
     pub fn add_to(&self, other: &BigUInt) -> BigUInt {
         // eprintln!("add_assign({},{})", self.to_hex_string(), other.to_hex_string());
         if other.is_empty() {
@@ -562,6 +567,7 @@ impl BigUInt {
     /// bi.add_to_self(&BigUInt::from_u32(0x0F0F));
     /// assert_eq!(bi.to_hex_string(),"F0F0F0F0F0F0F0F0F0F0F0F0F0F0FFFF");
     /// ```
+    #[inline]
     pub fn add_to_self(&mut self, other: &BigUInt) {
         // eprintln!("add_assign({},{})", self.to_hex_string(), other.to_hex_string());
         if self.is_empty() {
@@ -632,7 +638,7 @@ impl BigUInt {
     ///  let res = bi.sub_from(&BigUInt::from_u32(0xF0F0));
     ///  assert_eq!(res.to_hex_string(),"F0F0F0F0F0F0F0F0F0F0F0F0F0F00000");
     /// ```
-
+    #[inline]
     pub fn sub_from(&self, other: &Self) -> Self {
         match (self).cmp(&other) {
             Ordering::Less => panic!("integer underflow"),
@@ -704,7 +710,7 @@ impl BigUInt {
     ///  bi.sub_from_self(&BigUInt::from_u32(0xF0F0));
     ///  assert_eq!(bi.to_hex_string(),"F0F0F0F0F0F0F0F0F0F0F0F0F0F00000");
     /// ```
-
+    #[inline]
     pub fn sub_from_self(&mut self, other: &BigUInt) {
         // TODO: find out when trim is required, instead of doing it generally
         match (*self).cmp(other) {
@@ -753,6 +759,91 @@ impl BigUInt {
         }
     }
 
+    /// Multiply Divide self with another BigUInt and return the result.
+    ///
+    /// Due to BigUInt not being able to implement the Copy trait and the std::ops::Mul trait
+    /// consuming the right hand side operator, the use of * can be inefficient, having to clone
+    /// the right hand side operator.
+    /// This function works around that restriction, it is used by the std::ops::Mul implementation
+    ///
+    /// # Arguments
+    /// * other - the multiplyer
+    ///
+    /// # Returns
+    ///
+    /// The result of the multiplication
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigUInt;
+    /// let bi = BigUInt::from_u32(0x80000000);
+    /// let res = bi.mul_with(&BigUInt::from_u32(0x3000));
+    ///
+    /// assert_eq!(res.to_u64(), Some(0x180000000000));
+    /// ```
+    #[inline]
+    pub fn mul_with(&self, other: &Self) -> BigUInt {
+        if self.is_empty() || other.is_empty() {
+            BigUInt::new()
+        } else {
+            let mut res_list = vec![];
+            for (idx1, block1) in other.bits.iter().enumerate() {
+                for (idx2, block2) in self.bits.iter().enumerate() {
+                    let mut res = BigUInt::from_u128(*block1 as u128 * *block2 as u128);
+                    res <<= (idx1 + idx2) * BLOCK_SIZE;
+                    res_list.push(res);
+                }
+            }
+            let mut sum = BigUInt::new();
+            for res in res_list {
+                sum += res;
+            }
+            sum
+        }
+    }
+
+    /// Multiply Divide self with another BigUInt and store the result in self.
+    ///
+    /// Due to BigUInt not being able to implement the Copy trait and the std::ops::MulAssign trait
+    /// consuming the right hand side operator, the use of *= can be inefficient, having to clone
+    /// the right hand side operator.
+    /// This function works around that restriction, it is used by the std::ops::MulAssign implementation
+    ///
+    /// # Arguments
+    /// * other - the multiplyer
+    ///
+    /// # Examples
+    /// ```
+    /// use simple_big_int::BigUInt;
+    /// let mut bi = BigUInt::from_u32(0x80000000);
+    /// bi.mul_with_self(&BigUInt::from_u32(0x3000));
+    ///
+    /// assert_eq!(bi.to_u64(), Some(0x180000000000));
+    /// ```
+    #[inline]
+    pub fn mul_with_self(&mut self, other: &Self) {
+        if self.is_empty() {} else if other.is_empty() {
+            self.length = 0;
+            self.bits.clear();
+        } else {
+            let mut res_list = vec![];
+            for (idx1, block1) in other.bits.iter().enumerate() {
+                for (idx2, block2) in self.bits.iter().enumerate() {
+                    let mut res = BigUInt::from_u128(*block1 as u128 * *block2 as u128);
+                    res <<= (idx1 + idx2) * BLOCK_SIZE;
+                    res_list.push(res);
+                }
+            }
+            let mut sum = BigUInt::new();
+            for res in res_list {
+                sum += res;
+            }
+            self.length = sum.length;
+            self.bits = sum.bits
+        }
+    }
+
+
     /// Divide self by a divisor, return the result and the modulo.
     /// Due to BigUInt not being able to implement the Copy trait and the std::ops::Div trait
     /// consuming the right hand side operator the use of / can be inefficient, having to clone
@@ -774,6 +865,7 @@ impl BigUInt {
     /// assert_eq!(quotient.to_hex_string(), "2AAAA");
     /// assert_eq!(modulo.to_hex_string(), "2000");
     /// ```
+    #[inline]
     pub fn div_mod(&self, other: &BigUInt) -> (BigUInt, BigUInt) {
         assert!(!other.is_empty(), "Division by zero");
         match (*self).cmp(other) {
@@ -829,6 +921,7 @@ impl BigUInt {
     /// assert_eq!(bi.to_hex_string(), "2AAAA");
     /// assert_eq!(modulo.to_hex_string(), "2000");
     /// ```
+    #[inline]
     pub fn div_mod_self(&mut self, other: &BigUInt) -> BigUInt {
         assert!(!other.is_empty(), "Division by zero");
         match (*self).cmp(other) {

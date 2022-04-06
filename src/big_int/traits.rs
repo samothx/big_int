@@ -72,17 +72,13 @@ impl Mul for BigInt {
     type Output = Self;
 
     fn mul(self, other: Self) -> Self::Output {
-        BigInt {
-            signed: self.signed ^ other.signed,
-            uint: self.uint * other.uint,
-        }
+        self.mul_with(&other)
     }
 }
 
 impl MulAssign for BigInt {
     fn mul_assign(&mut self, other: Self) {
-        self.signed = self.signed ^ other.signed;
-        self.uint.mul_assign(other.uint);
+        self.mul_with_self(&other)
     }
 }
 

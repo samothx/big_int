@@ -70,49 +70,13 @@ impl Mul for BigUInt {
     type Output = Self;
 
     fn mul(self, other: Self) -> Self::Output {
-        if self.is_empty() {
-            self
-        } else if other.is_empty() {
-            other
-        } else {
-            let mut res_list = vec![];
-            for (idx1, block1) in other.bits.iter().enumerate() {
-                for (idx2, block2) in self.bits.iter().enumerate() {
-                    let mut res = BigUInt::from_u128(*block1 as u128 * *block2 as u128);
-                    res <<= (idx1 + idx2) * BLOCK_SIZE;
-                    res_list.push(res);
-                }
-            }
-            let mut sum = BigUInt::new();
-            for res in res_list {
-                sum += res;
-            }
-            sum
-        }
+        self.mul_with(&other)
     }
 }
 
 impl MulAssign for BigUInt {
     fn mul_assign(&mut self, other: Self) {
-        if self.is_empty() {} else if other.is_empty() {
-            self.length = 0;
-            self.bits.clear();
-        } else {
-            let mut res_list = vec![];
-            for (idx1, block1) in other.bits.iter().enumerate() {
-                for (idx2, block2) in self.bits.iter().enumerate() {
-                    let mut res = BigUInt::from_u128(*block1 as u128 * *block2 as u128);
-                    res <<= (idx1 + idx2) * BLOCK_SIZE;
-                    res_list.push(res);
-                }
-            }
-            let mut sum = BigUInt::new();
-            for res in res_list {
-                sum += res;
-            }
-            self.length = sum.length;
-            self.bits = sum.bits
-        }
+        self.mul_with_self(&other)
     }
 }
 
@@ -315,7 +279,7 @@ impl TryFrom<BigInt> for BigUInt {
         if value.is_negative() {
             Err("BigUInt only accepts values >= 0")
         } else {
-            Ok(value.to_unsigned())
+            Ok(value.as_unsigned())
         }
     }
 }
