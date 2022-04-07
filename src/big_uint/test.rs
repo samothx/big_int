@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::cmp::{Ordering,  min};
 use rand::Rng;
 use super::{BigUInt, BIT_64};
 
@@ -419,4 +419,43 @@ fn test_div() {
 fn test_to_dec_string() {
     let bi = BigUInt::from_u64(0xAB54A98F81652440);
     assert_eq!(bi.to_dec_string(), "12345678912345678912");
+}
+
+#[test]
+fn test_to_f64() {
+    let mut factorial = BigUInt::from(1u32);
+    for idx in 2..1000u32 {
+        factorial.mul_into(&idx.into());
+        let dec_str = factorial.to_dec_string();
+        let as_f64 = factorial.to_f64();
+        eprintln!("f{}: hex: {:?}", idx, factorial);
+        eprintln!("f{}: dec: {}", idx, dec_str);
+        eprintln!("f{}: fp:  {}", idx, as_f64);
+        if as_f64.is_finite() {
+            assert!(factorial.to_f64().to_string().starts_with(&dec_str[0..min(dec_str.len(), 10)]));
+        } else {
+            break;
+        }
+    }
+}
+
+#[test]
+fn test_from_f64() {
+    let mut factorial = 1f64;
+    for idx in 2..1000u32 {
+        factorial *= f64::from(idx);
+        eprintln!("f{}: fp:  {}", idx, factorial);
+
+        if factorial.is_infinite() {
+            break;
+        } else {
+            let f_int = BigUInt::from_f64(factorial);
+            let dec_str = f_int.to_dec_string();
+            eprintln!("f{}: dec: {}", idx, dec_str);
+            eprintln!("f{}: hex: {}", idx, f_int.to_hex_string());
+            assert!(factorial.to_string().starts_with(&dec_str[0..min(dec_str.len(), 10)]));
+        }
+
+    }
+
 }

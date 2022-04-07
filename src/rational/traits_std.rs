@@ -1,4 +1,5 @@
 use crate::{Rational, BigInt, BigUInt};
+use std::fmt::{Debug, Formatter, Display};
 
 impl From<(u32, u32)> for Rational {
     fn from(src: (u32, u32)) -> Self {
@@ -76,6 +77,26 @@ impl From<(BigInt, BigInt)> for Rational {
             signed: src.0.is_negative() ^ src.1.is_negative(),
             numerator: src.0.as_unsigned(),
             denominator: src.1.as_unsigned(),
+        }
+    }
+}
+
+impl Debug for Rational {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.is_integer() {
+            write!(f, "({}{:?})", if self.signed { "-" } else { "" }, self.numerator)
+        } else {
+            write!(f, "({}{:?}/{:?})", if self.signed { "-" } else { "" }, self.numerator, self.denominator)
+        }
+    }
+}
+
+impl Display for Rational {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.is_integer() {
+            write!(f, "{}{}", if self.signed { "-" } else { "" }, self.numerator)
+        } else {
+            write!(f, "{}{}/{}", if self.signed { "-" } else { "" }, self.numerator, self.denominator)
         }
     }
 }

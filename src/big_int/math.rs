@@ -185,4 +185,12 @@ impl BigInt {
         }
     }
 
+    pub fn to_f64(&self) -> f64 {
+        if self.signed {
+            -self.uint.to_f64()
+        } else {
+            self.uint.to_f64()
+        }
+    }
+
 }
