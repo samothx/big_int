@@ -15,7 +15,7 @@ impl From<(i32, i32)> for Rational {
         Self{
             signed: src.0.is_negative() ^ src.1.is_negative(),
             numerator: BigInt::from(src.0).as_unsigned(),
-            denominator: BigInt::from(src.0).as_unsigned(),
+            denominator: BigInt::from(src.1).as_unsigned(),
         }
     }
 }

@@ -28,7 +28,7 @@ fn test_add() {
 }
 
 #[test]
-fn test_add_to_self() {
+fn test_add_to_into() {
     let mut bi1: BigInt = 10.into();
     let bi2: BigInt = 20.into();
     bi1 += bi2;
@@ -89,7 +89,7 @@ fn test_subtract() {
 }
 
 #[test]
-fn test_subtract_from_self() {
+fn test_subtract_from_into() {
     let mut bi1: BigInt = 20.into();
     let bi2: BigInt = 10.into();
     bi1 -= bi2;
