@@ -30,6 +30,8 @@ impl BigInt {
             uint: BigUInt::new(),
         }
     }
+
+
     /// Create a BigInt from an i8 value.
     ///
     /// # Arguments
@@ -158,7 +160,7 @@ impl BigInt {
     /// ```
     #[inline]
     pub fn to_i64(&self) -> Option<i64> {
-        if self.uint.is_empty() {
+        if self.uint.is_zero() {
             Some(0)
         } else if self.uint.length() > 63 {
             None
@@ -189,7 +191,7 @@ impl BigInt {
     /// ```
     #[inline]
     pub fn to_i128(&self) -> Option<i128> {
-        if self.uint.is_empty() {
+        if self.uint.is_zero() {
             Some(0)
         } else if self.uint.length() > 127 {
             None
@@ -399,7 +401,7 @@ impl BigInt {
     pub fn pow(&self, power: u32) -> BigInt {
         BigInt {
             signed: if self.signed {
-                power % 2 == 1
+                (power & 0x1) == 0x1
             } else {
                 false
             },
@@ -444,4 +446,7 @@ impl BigInt {
     pub fn as_unsigned(self) -> BigUInt {
         self.uint
     }
+
+
+
 }
