@@ -154,7 +154,7 @@ fn test_right_shift() {
 }
 
 #[test]
-fn test_right_shift_self() {
+fn test_right_shift_into() {
     let mut bi: BigUInt = 0x1u32.into();
     bi >>= 1;
     assert!(bi.is_zero());
@@ -409,7 +409,7 @@ fn test_div() {
     assert_eq!(bi.to_hex_string(), "2AAAA");
 
     let mut bi = BigUInt::from_u32(0x80000000);
-    let modulo = bi.div_mod_self(&BigUInt::from_u32(0x3000));
+    let modulo = bi.div_mod_into(&BigUInt::from_u32(0x3000));
     assert_eq!(bi.to_hex_string(), "2AAAA");
     assert_eq!(modulo.to_hex_string(), "2000");
 
