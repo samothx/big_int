@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::cmp::{Ordering};
 use rand::Rng;
 use super::{BigUInt, BIT_64};
 
@@ -419,4 +419,36 @@ fn test_div() {
 fn test_to_dec_string() {
     let bi = BigUInt::from_u64(0xAB54A98F81652440);
     assert_eq!(bi.to_dec_string(), "12345678912345678912");
+}
+
+#[test]
+fn test_to_f64() {
+    let mut fact_bi = BigUInt::from(1u32);
+    let mut fact_f64 = 1.0_f64;
+    for idx in 2..1000u32 {
+        fact_bi.mul_into(&idx.into());
+        fact_f64 *= f64::from(idx);
+        if fact_f64.is_finite() {
+            assert!(((fact_f64 - fact_bi.to_f64()) / fact_f64).abs() < 1e-10_f64);
+        } else {
+            break;
+        }
+    }
+}
+
+#[test]
+fn test_from_f64() {
+    let mut factorial = 1f64;
+    for idx in 2..1000u32 {
+        factorial *= f64::from(idx);
+
+        if factorial.is_infinite() {
+            break;
+        } else {
+            let f_int = BigUInt::from_f64(factorial);
+            assert!(((f_int.to_f64() - factorial) / factorial).abs() < 1e-10_f64);
+        }
+
+    }
+
 }

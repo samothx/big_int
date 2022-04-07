@@ -1,8 +1,15 @@
 use std::cmp::Ordering;
 use std::cmp::min;
 use std::mem::swap;
+// #[macro_use]
+use lazy_static::lazy_static;
 
 use super::{BigUInt, BLOCK_MASK, Block, BLOCK_SIZE, BIT_65};
+
+lazy_static! {
+    static ref  BIT32_AS_F64: f64 = 2.0f64.powi(32);
+    static ref  BIT64_AS_F64: f64 = 2.0f64.powi(64);
+}
 
 impl BigUInt {
     /// Add to self and return the result.
@@ -524,7 +531,6 @@ impl BigUInt {
     /// let quotient = bi.div_by(&BigUInt::from_u32(0x3000));
     /// assert_eq!(quotient.to_hex_string(), "2AAAA");
     /// ```
-
     #[inline]
     pub fn div_by(&self, other: &BigUInt) -> BigUInt {
         let (div_res, _) = self.div_mod(other);
@@ -579,6 +585,40 @@ impl BigUInt {
                 self.bits = res.bits;
                 modulo
             }
+        }
+    }
+
+    pub fn to_f64(&self) -> f64 {
+        if self.is_zero() {
+            0.0
+        } else {
+            let mut register = 0f64;
+
+            self.bits.iter().rev().for_each(|block| {
+                register = register * *BIT32_AS_F64 + f64::from((*block >> 32) as u32);
+                register = register * *BIT32_AS_F64 + f64::from((*block & 0xFFFFFFFFu64) as u32);
+            });
+            register
+        }
+    }
+
+    pub fn from_f64(src: f64) -> BigUInt {
+        // TODO: check for optimization / error reduction
+        if src < 1.0 {
+            BigUInt::new()
+        } else {
+            let mut bits = Vec::new();
+            let mut register = src;
+            while register >= 1.0 {
+                bits.push((register % *BIT64_AS_F64) as u64);
+                register /= *BIT64_AS_F64;
+            }
+            let mut res = BigUInt{
+                length: bits.len() * BLOCK_SIZE,
+                bits
+            };
+            res.trim();
+            res
         }
     }
 
