@@ -1,7 +1,84 @@
 use super::Rational;
 use std::cmp::Ordering;
+use crate::BigUInt;
+
+use lazy_static::lazy_static;
+
+lazy_static! {
+    pub static ref  MAX_MANTISSA: f64 = 2.0f64.powi(f64::MANTISSA_DIGITS as i32);
+}
+
 
 impl Rational {
+    pub fn to_f64(&self) -> f64 {
+        if self.signed {
+            -self.numerator.to_f64() / self.denominator.to_f64()
+        } else {
+            self.numerator.to_f64() / self.denominator.to_f64()
+        }
+    }
+
+    pub fn from_f64(src: f64) -> Rational {
+        // TODO: more testing & optimize
+        // eprintln!("Rational::from_f64({})", src);
+        if src == 0.0 {
+            // eprintln!("Rational::from_f64({}) => {}", src, Rational::new());
+            Rational::new()
+        } else {
+            let signed = if src < 0.0 {
+                true
+            } else {
+                false
+            };
+            // eprintln!("Rational::from_f64({}) signed: {}", src, signed);
+
+            let mut int_part: f64;
+            let mut error = if signed { -src } else { src };
+
+            let mut rational = if error >= 1.0 {
+                int_part = error.round();
+                let rat = Rational::from(BigUInt::from_f64(int_part));
+                error = error - int_part;
+                rat
+            } else {
+                Rational::new()
+            };
+
+            // eprintln!("Rational::from_f64({}) initial: {} error: {}", src, rational, error);
+            // eprintln!("Rational::from_f64({}) MAX_MANTISSA: {}", src, *MAX_MANTISSA);
+
+            // TODO: find an apropriate error based termination condition
+
+            while error.abs() > 0.0 && (src / error).abs() < *MAX_MANTISSA {
+                debug_assert!(error < 1.0, "register must be a fraction at all times: {}", error);
+                let inverse = 1.0 / error;
+                // eprintln!("Rational::from_f64({}) loop{} start, error inv.: {}", src, loop_idx, inverse);
+                if inverse.is_infinite() {
+                    break;
+                }
+                int_part = inverse.round();
+
+                let divisor = BigUInt::from_f64(int_part.abs());
+                if error > 0.0 {
+                    // eprintln!("Rational::from_f64({}) add: 1/{}", src, divisor);
+                    rational += Rational::from((1u32.into(), divisor));
+                } else {
+                    // eprintln!("Rational::from_f64({}) sub: 1/{}", src, divisor);
+                    rational -= Rational::from((1u32.into(), divisor));
+                }
+
+                error = error - 1.0 / int_part;
+
+                // eprintln!("Rational::from_f64({}) loop{} end:  error: {}, ", src, loop_idx, error);
+                // eprintln!("Rational::from_f64({}) loop{} end: rational: {}", src, loop_idx, rational);
+            }
+
+            rational.signed = signed;
+            // eprintln!("Rational::from_f64({}) => {}", src, rational);
+            rational
+        }
+    }
+
     pub fn invert(&self) -> Rational {
         Rational {
             signed: self.signed,

@@ -44,13 +44,6 @@ impl Rational {
         self.denominator == 1u32.into()
     }
 
-    pub fn to_f64(&self) -> f64 {
-        if self.signed {
-            -self.numerator.to_f64() / self.denominator.to_f64()
-        } else {
-            self.numerator.to_f64() / self.denominator.to_f64()
-        }
-    }
 }
 
 impl<'a> Rational {
