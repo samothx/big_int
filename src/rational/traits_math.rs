@@ -6,27 +6,26 @@ impl Add for Rational {
     type Output = Self;
 
     fn add(self, other: Self) -> Self::Output {
-        todo!()
+        self.add_to(&other)
     }
 }
 
 impl AddAssign for Rational {
     fn add_assign(&mut self, other: Self) {
-        todo!()
+        self.add_into(&other);
     }
 }
 
 impl Sub for Rational {
     type Output = Self;
-
     fn sub(self, other: Self) -> Self::Output {
-        todo!()
+        self.sub_from(&other)
     }
 }
 
 impl SubAssign for Rational {
     fn sub_assign(&mut self, other: Self) {
-        todo!()
+        self.sub_into(&other)
     }
 }
 
@@ -40,7 +39,7 @@ impl Mul for Rational {
 
 impl MulAssign for Rational {
     fn mul_assign(&mut self, other: Self) {
-        self.mul_by_into(&other)
+        self.mul_into(&other)
     }
 }
 
@@ -55,6 +54,6 @@ impl Div for Rational {
 impl DivAssign for Rational {
     fn div_assign(&mut self, other: Self) {
         self.invert_into();
-        self.mul_by_into(&other);
+        self.mul_into(&other);
     }
 }
