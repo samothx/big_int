@@ -423,13 +423,15 @@ fn test_to_dec_string() {
 
 #[test]
 fn test_to_f64() {
+    let max_error = 10.0 / 2.0f64.powi(f64::MANTISSA_DIGITS as i32);
     let mut fact_bi = BigUInt::from(1u32);
     let mut fact_f64 = 1.0_f64;
     for idx in 2..1000u32 {
         fact_bi.mul_into(&idx.into());
         fact_f64 *= f64::from(idx);
         if fact_f64.is_finite() {
-            assert!(((fact_f64 - fact_bi.to_f64()) / fact_f64).abs() < 1e-10_f64);
+            assert!(((fact_f64 - fact_bi.to_f64()) / fact_f64).abs() < max_error,
+                    "error too big: err:{:e}>max_err:{:e}", ((fact_f64 - fact_bi.to_f64()) / fact_f64).abs(), max_error);
         } else {
             break;
         }
@@ -439,6 +441,7 @@ fn test_to_f64() {
 #[test]
 fn test_from_f64() {
     let mut factorial = 1f64;
+    let max_error = 10.0 / 2.0f64.powi(f64::MANTISSA_DIGITS as i32);
     for idx in 2..1000u32 {
         factorial *= f64::from(idx);
 
@@ -446,7 +449,10 @@ fn test_from_f64() {
             break;
         } else {
             let f_int = BigUInt::from_f64(factorial);
-            assert!(((f_int.to_f64() - factorial) / factorial).abs() < 1e-10_f64);
+            assert!(((f_int.to_f64() - factorial) / factorial).abs() < max_error,
+                    "error too big: err:{:e}>max_err:{:e}",
+                    ((f_int.to_f64() - factorial) / factorial).abs(),
+                    max_error);
         }
 
     }

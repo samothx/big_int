@@ -5,7 +5,7 @@ use crate::BigUInt;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    pub static ref  MAX_MANTISSA: f64 = 2.0f64.powi(f64::MANTISSA_DIGITS as i32);
+    static ref  MAX_MANTISSA: f64 = 2.0f64.powi(f64::MANTISSA_DIGITS as i32);
 }
 
 
