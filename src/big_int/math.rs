@@ -181,7 +181,7 @@ impl BigInt {
             } else {
                 false
             },
-            uint: self.uint.pow(power)
+            uint: self.uint.powi(power)
         }
     }
 

@@ -1,5 +1,43 @@
 use crate::{Rational, BigUInt, BigInt};
 use std::fmt::{Debug, Formatter, Display};
+use std::cmp::{Ordering, PartialOrd, Eq};
+
+impl Eq for Rational {}
+
+impl PartialEq for Rational {
+    fn eq(&self, other: &Self) -> bool {
+        // TODO: prerequisite rational is always gcd reduced
+        self.signed == other.signed &&
+            self.numerator == other.numerator &&
+            self.denominator == other.denominator
+    }
+}
+
+impl PartialOrd for Rational {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Rational {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.signed == other.signed {
+            let diff = self.abs().sub_from(&other.abs());
+            if diff.is_zero() {
+                Ordering::Equal
+            } else if diff.is_positive() {
+                if self.signed { Ordering::Less } else { Ordering::Greater }
+            } else {
+                if self.signed { Ordering::Greater } else { Ordering::Less }
+            }
+        } else if self.signed {
+            Ordering::Less
+        } else {
+            Ordering::Greater
+        }
+    }
+}
+
 
 impl From<(u32, u32)> for Rational {
     fn from(src: (u32, u32)) -> Self {
@@ -86,6 +124,66 @@ impl From<(i128, i128)> for Rational {
     }
 }
 
+impl From<i32> for Rational {
+    fn from(src: i32) -> Self {
+        Self {
+            signed: src.is_negative(),
+            numerator: BigInt::from(src).as_unsigned(),
+            denominator: BigUInt::from(1u32),
+        }
+    }
+}
+
+impl From<u32> for Rational {
+    fn from(src: u32) -> Self {
+        Self {
+            signed: false,
+            numerator: BigUInt::from(src),
+            denominator: BigUInt::from(1u32),
+        }
+    }
+}
+
+impl From<i64> for Rational {
+    fn from(src: i64) -> Self {
+        Self {
+            signed: src.is_negative(),
+            numerator: BigInt::from(src).as_unsigned(),
+            denominator: BigUInt::from(1u32),
+        }
+    }
+}
+
+impl From<u64> for Rational {
+    fn from(src: u64) -> Self {
+        Self {
+            signed: false,
+            numerator: BigUInt::from(src),
+            denominator: BigUInt::from(1u32),
+        }
+    }
+}
+
+impl From<i128> for Rational {
+    fn from(src: i128) -> Self {
+            Self {
+                signed: src.is_negative(),
+                numerator: BigInt::from(src).as_unsigned(),
+                denominator: BigUInt::from(1u32),
+            }
+    }
+}
+
+impl From<u128> for Rational {
+    fn from(src: u128) -> Self {
+        Self {
+            signed: false,
+            numerator: BigUInt::from(src),
+            denominator: BigUInt::from(1u32),
+        }
+    }
+}
+
 impl From<(BigUInt, BigUInt)> for Rational {
     fn from(src: (BigUInt, BigUInt)) -> Self {
         if src.1.is_zero() {
@@ -127,6 +225,12 @@ impl From<BigInt> for Rational {
             numerator: src.as_unsigned(),
             denominator: 1u32.into(),
         }
+    }
+}
+
+impl From<f64> for Rational {
+    fn from(src: f64) -> Self {
+        Self::from_f64(src)
     }
 }
 

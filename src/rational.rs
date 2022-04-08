@@ -14,6 +14,7 @@ pub use traits_math::*;
 mod math;
 pub use math::*;
 
+#[derive(Clone)]
 pub struct Rational {
     signed: bool,
     numerator: BigUInt,
@@ -42,6 +43,11 @@ impl Rational {
     #[inline]
     pub fn is_integer(&self) -> bool {
         self.denominator == 1u32.into()
+    }
+
+    #[inline]
+    pub fn is_zero(&self) -> bool {
+        self.numerator.is_zero()
     }
 
 }

@@ -4,10 +4,14 @@ use crate::BigUInt;
 
 use lazy_static::lazy_static;
 
+
 lazy_static! {
     static ref  MAX_MANTISSA: f64 = 2.0f64.powi(f64::MANTISSA_DIGITS as i32);
+    static ref  EPSILON: Rational = Rational::from_f64(f64::EPSILON);
+    static ref TOLERANCE: Rational = Rational::from_f64(10.0 / 2.0f64.powi(f64::MANTISSA_DIGITS as i32));
 }
 
+const SQRT_MAX_ITERATIONS: usize = 100;
 
 impl Rational {
     pub fn to_f64(&self) -> f64 {
@@ -278,5 +282,63 @@ impl Rational {
             self.numerator.div_mod_into(&gcd);
             self.denominator.div_mod_into(&gcd);
         }
+    }
+
+    pub fn abs(&self) -> Rational {
+        Self{
+            signed: false,
+            numerator: self.numerator.clone(),
+            denominator: self.denominator.clone()
+        }
+    }
+
+    pub fn powi(&self, power: u32) -> Rational {
+        let mut res = self.clone();
+        for _ in 1..power {
+            res.mul_into(self);
+        }
+        res
+    }
+
+    pub fn sqrt(&self) -> Rational {
+        // use newton's algorithm to solve 'x^2 - self = 0'
+        // https://en.wikipedia.org/wiki/Newton%27s_method
+
+        eprintln!("Rational::sqrt({})", self);
+        let two: Rational = 2u32.into();
+        let mut x0: Rational = 1u32.into();
+        let mut x1: Rational = Rational::new();
+
+        let mut x_curr = &mut x0;
+        let mut x_next = &mut x1;
+        let mut found = false;
+
+        for iteration in 0..SQRT_MAX_ITERATIONS {
+            eprintln!("Rational::sqrt() idx: {} x: {}", iteration, x_curr.to_f64());
+            let y = x_curr.powi(2).sub_from(self);
+            let y_prime = x_curr.mul_by(&two);
+
+            eprintln!("Rational::sqrt() y: {}, y_prime: {}", y.to_f64(), y_prime.to_f64());
+
+            if y_prime.abs() < *EPSILON {
+                panic!("Rational::sqrt() is not converging - y_prime is too small");
+            }
+
+            *x_next = x_curr.sub_from( &(y / y_prime));
+            eprintln!("Rational::sqrt() x_next: {}", x_next.to_f64());
+
+            if x_curr.sub_from(x_next).abs() <= *TOLERANCE {
+                found = true;
+                break;
+            }
+
+            std::mem::swap(&mut x_curr, &mut x_next);
+        }
+
+        if !found {
+            panic!("Rational::sqrt({}) is not converging - too many iterations", self);
+        }
+
+        (*x_next).clone()
     }
 }
