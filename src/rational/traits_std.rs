@@ -1,4 +1,4 @@
-use crate::{Rational, BigInt, BigUInt};
+use crate::{Rational, BigUInt, BigInt};
 use std::fmt::{Debug, Formatter, Display};
 
 impl From<(u32, u32)> for Rational {
@@ -42,6 +42,7 @@ impl From<(u64, u64)> for Rational {
         }
     }
 }
+
 
 impl From<(i64, i64)> for Rational {
     fn from(src: (i64, i64)) -> Self {
@@ -108,7 +109,6 @@ impl From<BigUInt> for Rational {
         }
     }
 }
-
 
 impl From<(BigInt, BigInt)> for Rational {
     fn from(src: (BigInt, BigInt)) -> Self {

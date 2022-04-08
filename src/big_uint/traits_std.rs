@@ -2,7 +2,9 @@ use std::cmp::Ordering;
 use std::fmt::{Display, Formatter, Debug};
 use std::convert::TryFrom;
 
+#[cfg(feature = "big_int")]
 use crate::BigInt;
+
 use super::BigUInt;
 
 impl Default for BigUInt {
@@ -72,7 +74,8 @@ impl From<u128> for BigUInt {
     }
 }
 
-
+/// Requires feature big_int to be enabled
+#[cfg(feature = "big_int")]
 impl TryFrom<BigInt> for BigUInt {
     type Error = &'static str;
     fn try_from(value: BigInt) -> Result<Self, Self::Error> {

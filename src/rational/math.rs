@@ -51,7 +51,7 @@ impl Rational {
 
             while error.abs() > 0.0 && (src / error).abs() < *MAX_MANTISSA {
                 debug_assert!(error < 1.0, "register must be a fraction at all times: {}", error);
-                let inverse = 1.0 / error;
+                let inverse = error.recip();
                 // eprintln!("Rational::from_f64({}) loop{} start, error inv.: {}", src, loop_idx, inverse);
                 if inverse.is_infinite() {
                     break;
@@ -67,7 +67,7 @@ impl Rational {
                     rational -= Rational::from((1u32.into(), divisor));
                 }
 
-                error = error - 1.0 / int_part;
+                error = error - int_part.recip();
 
                 // eprintln!("Rational::from_f64({}) loop{} end:  error: {}, ", src, loop_idx, error);
                 // eprintln!("Rational::from_f64({}) loop{} end: rational: {}", src, loop_idx, rational);
