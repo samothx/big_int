@@ -244,10 +244,12 @@ impl BigUInt {
                 bits.push(new_block);
                 bits
             };
-            BigUInt {
+            let mut res = BigUInt {
                 length: self.length - rhs,
                 bits,
-            }
+            };
+            res.trim();
+            res
         }
     }
 
@@ -282,6 +284,7 @@ impl BigUInt {
             };
             self.length = self.length - rhs;
             self.bits = bits;
+            self.trim();
         }
     }
 

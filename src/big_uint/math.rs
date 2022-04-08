@@ -352,7 +352,7 @@ impl BigUInt {
         }
     }
 
-    pub fn pow(&self, power: u32) -> BigUInt {
+    pub fn powi(&self, power: u32) -> BigUInt {
         let mut res = self.clone();
         for _ in 1..power {
             res.mul_into(self);
@@ -588,9 +588,10 @@ impl BigUInt {
         }
     }
 
-    pub fn to_f64(&self) -> f64 {
+    pub fn to_f64(&self) -> Result<f64,String> {
+        // TODO: what to do with numbers that cannot be held in f64
         if self.is_zero() {
-            0.0
+            Ok(0.0)
         } else {
             let mut register = 0f64;
 
@@ -598,7 +599,13 @@ impl BigUInt {
                 register = register * *BIT32_AS_F64 + f64::from((*block >> 32) as u32);
                 register = register * *BIT32_AS_F64 + f64::from((*block & 0xFFFFFFFFu64) as u32);
             });
-            register
+            if register.is_nan() {
+                Err(format!("{:?} produced an invalid f64", self))
+            } else if register.is_infinite() {
+                Err(format!("{:?} produced an infinite f64", self))
+            } else {
+                Ok(register)
+            }
         }
     }
 

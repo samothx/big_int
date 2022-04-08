@@ -14,11 +14,13 @@ lazy_static! {
 const SQRT_MAX_ITERATIONS: usize = 100;
 
 impl Rational {
-    pub fn to_f64(&self) -> f64 {
+    pub fn to_f64(&self) -> Result<f64,String> {
+        let numerator = self.numerator.to_f64()?;
+        let denominator = self.denominator.to_f64()?;
         if self.signed {
-            -self.numerator.to_f64() / self.denominator.to_f64()
+            Ok(-numerator / denominator)
         } else {
-            self.numerator.to_f64() / self.denominator.to_f64()
+            Ok(numerator / denominator)
         }
     }
 
@@ -314,18 +316,22 @@ impl Rational {
         let mut found = false;
 
         for iteration in 0..SQRT_MAX_ITERATIONS {
-            eprintln!("Rational::sqrt() idx: {} x: {}", iteration, x_curr.to_f64());
+            eprintln!("Rational::sqrt() idx: {} x: {}", iteration, x_curr.to_f64()
+                .expect("failed to convert to f64"));
+
             let y = x_curr.powi(2).sub_from(self);
             let y_prime = x_curr.mul_by(&two);
 
-            eprintln!("Rational::sqrt() y: {}, y_prime: {}", y.to_f64(), y_prime.to_f64());
+            eprintln!("Rational::sqrt() y: {}, y_prime: {}",
+                      y.to_f64().expect("failed to convert to f64"),
+                      y_prime.to_f64().expect("failed to convert to f64"));
 
             if y_prime.abs() < *EPSILON {
                 panic!("Rational::sqrt() is not converging - y_prime is too small");
             }
 
             *x_next = x_curr.sub_from( &(y / y_prime));
-            eprintln!("Rational::sqrt() x_next: {}", x_next.to_f64());
+            eprintln!("Rational::sqrt() x_next: {}", x_next.to_f64().expect("failed to convert to f64"));
 
             if x_curr.sub_from(x_next).abs() <= *TOLERANCE {
                 found = true;
