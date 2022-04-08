@@ -239,12 +239,10 @@ impl Rational {
     pub fn sub_from(&self, other: &Self) -> Rational {
         if self.signed == other.signed {
             self.sub_from_unsigned(&other)
-        } else if self.signed {
-            // -a -b => -(a + b)
-            self.add_unsigned(&other)
         } else {
+            // -a -b => -(a + b)s
             // a -(-b) => a + b
-            other.add_unsigned(&self)
+            self.add_unsigned(&other)
         }
     }
 
@@ -253,11 +251,18 @@ impl Rational {
             self.sub_from_unsigned_into(&other);
         } else if self.signed {
             // -a -b => -(a + b)
-            self.add_unsigned_into(&other)
-        } else {
             // a -(-b) => a + b
-            *self = other.add_unsigned(&self)
+            self.add_unsigned_into(&other)
         }
+    }
+
+    pub fn div_by(&self, other: &Self) -> Rational {
+        let register = other.invert();
+        register.mul_by(self)
+    }
+
+    pub fn div_into(&mut self, other: &Self) {
+        self.mul_into(&other.invert())
     }
 
     pub fn mul_by(&self, other: &Self) -> Rational {
@@ -302,36 +307,72 @@ impl Rational {
         res
     }
 
+    pub fn trunc(&self) -> Rational {
+        match self.numerator.cmp(self.denominator()) {
+            Ordering::Less => Rational::new(),
+            Ordering::Equal => 1u32.into(),
+            Ordering::Greater => {
+                Rational{
+                    signed: self.signed,
+                    numerator: self.numerator.div_by(self.denominator()),
+                    denominator: 1u32.into()
+                }
+            }
+        }
+    }
+
     pub fn sqrt(&self) -> Rational {
+        // TODO: optimize
+        // eprintln!("Rational::sqrt({})", self);
+
         // use newton's algorithm to solve 'x^2 - self = 0'
         // https://en.wikipedia.org/wiki/Newton%27s_method
 
-        eprintln!("Rational::sqrt({})", self);
-        let two: Rational = 2u32.into();
-        let mut x0: Rational = 1u32.into();
+        // TODO: find agood starting value
+        // see https://en.wikipedia.org/wiki/Methods_of_computing_square_roots - Binary Estimates
+        // a) Don't worry about it, if self is small (<= 2^3)
+        // b) Otherwise S => a * 2^2n where 0.1 <= a <= 10 [binary]
+
+        //eprintln!("Rational::sqrt() num_length {}, denom_length: {}",
+        //          self.numerator.length(), self.denominator.length());
+        let mut x0: Rational = if self.numerator.length() > self.denominator.length() + 2 {
+            // numerator is about 4 times denominator
+            // let trunc = self.trunc().numerator;
+            // let magnitude = ((self.numerator.length() - self.denominator.length()) >> 1) - 1;
+            (BigUInt::from(1u32)<<((self.numerator.length() - self.denominator.length()) >> 1)).into()
+        } else {
+            1u32.into()
+        };
         let mut x1: Rational = Rational::new();
 
         let mut x_curr = &mut x0;
         let mut x_next = &mut x1;
         let mut found = false;
 
-        for iteration in 0..SQRT_MAX_ITERATIONS {
-            eprintln!("Rational::sqrt() idx: {} x: {}", iteration, x_curr.to_f64()
-                .expect("failed to convert to f64"));
+        for _ in 0..SQRT_MAX_ITERATIONS {
+            // eprintln!("Rational::sqrt() idx: {} x: {}", iteration, x_curr);
 
             let y = x_curr.powi(2).sub_from(self);
-            let y_prime = x_curr.mul_by(&two);
+            // let y_prime = x_curr.mul_by(&two);
+            // two * x - use left shift instead
+            let y_prime = Rational{
+                signed: x_curr.signed,
+                numerator: x_curr.numerator.left_shift(1),
+                denominator: x_curr.denominator.clone()
+            };
+            // TODO: gcd reduction on y_prime?
 
-            eprintln!("Rational::sqrt() y: {}, y_prime: {}",
-                      y.to_f64().expect("failed to convert to f64"),
-                      y_prime.to_f64().expect("failed to convert to f64"));
+            // eprintln!("Rational::sqrt() y: {}, y_prime: {}", y, y_prime);
 
             if y_prime.abs() < *EPSILON {
                 panic!("Rational::sqrt() is not converging - y_prime is too small");
             }
 
-            *x_next = x_curr.sub_from( &(y / y_prime));
-            eprintln!("Rational::sqrt() x_next: {}", x_next.to_f64().expect("failed to convert to f64"));
+            let p1 = y/y_prime;
+            // eprintln!("Rational::sqrt() y/y_prime: {}", p1);
+
+            *x_next = x_curr.sub_from( &p1);
+            // eprintln!("Rational::sqrt() x_next: {}", x_next);
 
             if x_curr.sub_from(x_next).abs() <= *TOLERANCE {
                 found = true;
@@ -345,6 +386,7 @@ impl Rational {
             panic!("Rational::sqrt({}) is not converging - too many iterations", self);
         }
 
+        // eprintln!("Rational::sqrt({}) result: {}", self, x_next);
         (*x_next).clone()
     }
 }

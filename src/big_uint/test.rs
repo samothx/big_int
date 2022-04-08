@@ -226,22 +226,22 @@ fn test_gcd() {
         rng.gen_range(0..0x80000000u64).into()
     }).collect();
     let mut bi1 = gcd.clone();
-    (1..5u32).zip(nums.iter()).for_each(|(offset,num)|{ bi1 *= num.add_to( &offset.into()); });
+    (1..5u32).zip(nums.iter()).for_each(|(offset, num)| { bi1 *= num.add_to(&offset.into()); });
     // eprintln!("bi1: {:?}, {}", bi1, bi1);
-    let (_,modulo) = bi1.div_mod(&gcd);
+    let (_, modulo) = bi1.div_mod(&gcd);
     assert!(modulo.is_zero());
     let mut bi2 = gcd.clone();
-    (5..10u32).zip(nums.iter()).for_each(|(offset,num)|{ bi2 *= num.add_to( &offset.into()); });
-    let (_,modulo) = bi2.div_mod(&gcd);
+    (5..10u32).zip(nums.iter()).for_each(|(offset, num)| { bi2 *= num.add_to(&offset.into()); });
+    let (_, modulo) = bi2.div_mod(&gcd);
     assert!(modulo.is_zero());
     let wrong_gcd = gcd.add_to(&1u32.into());
-    let (_,modulo) = bi2.div_mod(&wrong_gcd);
+    let (_, modulo) = bi2.div_mod(&wrong_gcd);
     assert!(!modulo.is_zero());
     // eprintln!("bi2: {:?}, {}", bi2, bi2);
     let calc_gcd = bi1.gcd(&bi2);
-    let (_,modulo) = bi1.div_mod(&calc_gcd);
+    let (_, modulo) = bi1.div_mod(&calc_gcd);
     assert!(modulo.is_zero());
-    let (_,modulo) = bi2.div_mod(&calc_gcd);
+    let (_, modulo) = bi2.div_mod(&calc_gcd);
     assert!(modulo.is_zero());
     if gcd != calc_gcd {
         assert!(gcd < calc_gcd);
@@ -272,7 +272,6 @@ fn test_sub() {
     let bi = BigUInt::from_u128(0x8AC7230489E8000000);
     let res = bi - BigUInt::from_u32(0x5DEAD34);
     assert_eq!(res.to_hex_string(), format!("{:X}", 0x8AC7230489E8000000u128 - 0x5DEAD34u128));
-
 }
 
 #[test]
@@ -304,7 +303,7 @@ fn test_mul() {
 
     let bi1: BigUInt = 0x7FFFFFFFFFFFFFFFu64.into();
     let bi2: BigUInt = 0x4u8.into();
-    assert_eq!((bi1 * bi2).to_u128(),Some(0x1FFFFFFFFFFFFFFFC));
+    assert_eq!((bi1 * bi2).to_u128(), Some(0x1FFFFFFFFFFFFFFFC));
 }
 
 #[test]
@@ -330,7 +329,6 @@ fn test_shift_out() {
     let expected_res = ((0xFFFFu128 << 61) & test) >> 61;
     assert_eq!(bi.to_hex_string(), "16789ABCDEF01234");
     assert_eq!(res.to_hex_string(), format!("{:X}", expected_res));
-
 }
 
 #[test]
@@ -347,7 +345,6 @@ fn test_get_bits() {
 
     let res = bi.get_bits(94, 64);
     assert_eq!(res.to_hex_string(), "E1E1E1E1E1E1E1E1");
-
 }
 
 #[test]
@@ -412,7 +409,6 @@ fn test_div() {
     let modulo = bi.div_mod_into(&BigUInt::from_u32(0x3000));
     assert_eq!(bi.to_hex_string(), "2AAAA");
     assert_eq!(modulo.to_hex_string(), "2000");
-
 }
 
 #[test]
@@ -430,8 +426,9 @@ fn test_to_f64() {
         fact_bi.mul_into(&idx.into());
         fact_f64 *= f64::from(idx);
         if fact_f64.is_finite() {
-            assert!(((fact_f64 - fact_bi.to_f64()) / fact_f64).abs() < max_error,
-                    "error too big: err:{:e}>max_err:{:e}", ((fact_f64 - fact_bi.to_f64()) / fact_f64).abs(), max_error);
+            assert!(((fact_f64 - fact_bi.to_f64().expect("cannot convert to f64")) / fact_f64).abs() < max_error,
+                    "error too big: err:{:e}>max_err:{:e}",
+                    ((fact_f64 - fact_bi.to_f64().expect("cannot convert to f64")) / fact_f64).abs(), max_error);
         } else {
             break;
         }
@@ -449,12 +446,10 @@ fn test_from_f64() {
             break;
         } else {
             let f_int = BigUInt::from_f64(factorial);
-            assert!(((f_int.to_f64() - factorial) / factorial).abs() < max_error,
+            assert!(((f_int.to_f64().expect("cannot convert to f64") - factorial) / factorial).abs() < max_error,
                     "error too big: err:{:e}>max_err:{:e}",
-                    ((f_int.to_f64() - factorial) / factorial).abs(),
+                    ((f_int.to_f64().expect("cannot convert to f64") - factorial) / factorial).abs(),
                     max_error);
         }
-
     }
-
 }
