@@ -46,14 +46,12 @@ impl MulAssign for Rational {
 impl Div for Rational {
     type Output = Self;
     fn div(self, other: Self) -> Rational {
-        let register = self.invert();
-        register.mul(other)
+        self.div_by(&other)
     }
 }
 
 impl DivAssign for Rational {
     fn div_assign(&mut self, other: Self) {
-        self.invert_into();
-        self.mul_into(&other);
+        self.div_into(&other)
     }
 }

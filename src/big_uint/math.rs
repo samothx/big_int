@@ -333,6 +333,7 @@ impl BigUInt {
     /// ```
     #[inline]
     pub fn mul_with(&self, other: &Self) -> BigUInt {
+        // TODO: optimize for pwers of two ?
         if self.is_zero() || other.is_zero() {
             BigUInt::new()
         } else {
