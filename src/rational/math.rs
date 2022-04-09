@@ -349,7 +349,7 @@ impl Rational {
             // TODO: gcd reduction on y_prime ?
             let y_prime = Rational{
                 signed: x_curr.signed,
-                numerator: x_curr.numerator.left_shift(1),
+                numerator: x_curr.numerator.shift_left(1),
                 denominator: x_curr.denominator.clone()
             };
 

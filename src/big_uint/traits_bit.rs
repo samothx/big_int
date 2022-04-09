@@ -8,14 +8,14 @@ impl Shl<usize> for BigUInt {
         if rhs == 0 {
             self
         } else {
-            self.left_shift(rhs)
+            self.shift_left(rhs)
         }
     }
 }
 
 impl ShlAssign<usize> for BigUInt {
     fn shl_assign(&mut self, rhs: usize) {
-        self.left_shift_into(rhs)
+        self.shift_left_into(rhs)
     }
 }
 
@@ -28,14 +28,14 @@ impl Shr<usize> for BigUInt {
         if rhs == 0 {
             self
         } else {
-            self.right_shift(rhs)
+            self.shift_right(rhs)
         }
     }
 }
 
 impl ShrAssign<usize> for BigUInt {
     fn shr_assign(&mut self, rhs: usize) {
-        self.right_shift_into(rhs)
+        self.shift_right_into(rhs)
     }
 }
 
