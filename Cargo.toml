@@ -16,6 +16,7 @@ default = ["big_uint"]
 big_uint = []
 big_int = ["big_uint"]
 rational = ["big_uint", "big_int"]
+debug_checks = []
 
 [dependencies]
 lazy_static = "1.4.0"

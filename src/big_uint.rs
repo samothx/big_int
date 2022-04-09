@@ -1,3 +1,5 @@
+use super::macros::function;
+
 type Block = u64;
 
 const BLOCK_SIZE: usize = 64;
@@ -24,6 +26,7 @@ mod math;
 pub use math::*;
 
 mod bits;
+
 pub use bits::*;
 
 #[cfg(test)]
@@ -83,6 +86,9 @@ impl BigUInt {
         };
         res.trim();
 
+        #[cfg(feature = "debug_checks")]
+            res.check(function!());
+
         Ok(res)
     }
 
@@ -112,10 +118,15 @@ impl BigUInt {
                     work <<= 1;
                 }
             }
-            BigUInt {
+            let res = BigUInt {
                 length,
                 bits: vec![from as Block],
-            }
+            };
+
+            #[cfg(feature = "debug_checks")]
+                res.check(function!());
+
+            res
         } else {
             BigUInt::new()
         }
@@ -147,10 +158,13 @@ impl BigUInt {
                     work <<= 1;
                 }
             }
-            BigUInt {
+            let res = BigUInt {
                 length,
                 bits: vec![from as Block],
-            }
+            };
+            #[cfg(feature = "debug_checks")]
+                res.check(function!());
+            res
         } else {
             BigUInt::new()
         }
@@ -182,10 +196,13 @@ impl BigUInt {
                     work <<= 1;
                 }
             }
-            BigUInt {
+            let res = BigUInt {
                 length,
                 bits: vec![from as Block],
-            }
+            };
+            #[cfg(feature = "debug_checks")]
+                res.check(function!());
+            res
         } else {
             BigUInt::new()
         }
@@ -217,10 +234,13 @@ impl BigUInt {
                     work <<= 1;
                 }
             }
-            BigUInt {
+            let res = BigUInt {
                 length,
                 bits: vec![from as Block],
-            }
+            };
+            #[cfg(feature = "debug_checks")]
+                res.check(function!());
+            res
         } else {
             BigUInt::new()
         }
@@ -265,10 +285,13 @@ impl BigUInt {
             if bits.len() > 1 {
                 length += BLOCK_SIZE
             }
-            BigUInt {
+            let res = BigUInt {
                 length,
                 bits,
-            }
+            };
+            #[cfg(feature = "debug_checks")]
+                res.check(function!());
+            res
         } else {
             BigUInt::new()
         }
@@ -511,6 +534,14 @@ impl BigUInt {
     #[inline]
     pub fn is_odd(&self) -> bool {
         !self.is_even()
+    }
+
+    #[allow(dead_code)]
+    #[inline]
+    fn check(&self, location: &str) {
+        // eprintln!("called from {}", location);
+        assert_eq!(self.length / BLOCK_SIZE + if self.length % BLOCK_SIZE != 0 { 1 } else { 0 }, self.bits.len(),
+                   "BigUInt::check(): {} Incomplete or invalid trim {:?}", location, self);
     }
 }
 

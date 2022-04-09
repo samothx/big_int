@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
-
-use crate::BigUInt;
+use crate::{macros::function,BigUInt};
 use super::{BLOCK_SIZE, BLOCK_MASK};
 
 impl BigUInt {
@@ -145,7 +144,7 @@ impl BigUInt {
         res
     }
 
-    pub fn left_shift(&self, rhs: usize) -> BigUInt {
+    pub fn shift_left(&self, rhs: usize) -> BigUInt {
         // TODO: redesign: process blocks to new vec instead of copying it ahead
         if self.is_zero() {
             BigUInt::new()
@@ -177,14 +176,17 @@ impl BigUInt {
                 bits[min - 1] <<= l_shift;
             }
 
-            BigUInt {
+            let res = BigUInt {
                 length,
                 bits,
-            }
+            };
+            #[cfg(feature = "debug_checks")]
+                res.check(function!());
+            res
         }
     }
 
-    pub fn left_shift_into(&mut self, rhs: usize) {
+    pub fn shift_left_into(&mut self, rhs: usize) {
         // TODO: redesign: process blocks to new vec instead of copying it ahead
         if rhs == 0 || self.is_zero() {} else {
             let new_length = self.length + rhs;
@@ -212,10 +214,13 @@ impl BigUInt {
                 self.bits[min - 1] <<= shift;
             }
             self.length = new_length;
+            #[cfg(feature = "debug_checks")]
+                self.check(function!());
+
         }
     }
 
-    pub fn right_shift(&self, rhs: usize) -> Self {
+    pub fn shift_right(&self, rhs: usize) -> Self {
         if rhs >= self.length {
             // everything shifted away
             BigUInt::new()
@@ -249,11 +254,13 @@ impl BigUInt {
                 bits,
             };
             res.trim();
+            #[cfg(feature = "debug_checks")]
+                res.check(function!());
             res
         }
     }
 
-    pub fn right_shift_into(&mut self, rhs: usize) {
+    pub fn shift_right_into(&mut self, rhs: usize) {
         if rhs >= self.length {
             // everything shifted away
             self.length = 0;
@@ -285,6 +292,9 @@ impl BigUInt {
             self.length = self.length - rhs;
             self.bits = bits;
             self.trim();
+            #[cfg(feature = "debug_checks")]
+                self.check(function!());
+
         }
     }
 
@@ -313,6 +323,8 @@ impl BigUInt {
                     // eprintln!("  rest:\t{:b}", *last);
                     self.length -= num_bits;
                     self.trim();
+                    #[cfg(feature = "debug_checks")]
+                        res.check(function!());
                     res
                 }
                 Ordering::Equal => {
@@ -320,6 +332,8 @@ impl BigUInt {
                     let res = BigUInt::from_u64(*self.bits.last().expect("Unexpected empty BigUInt"));
                     self.length -= num_bits;
                     self.bits.resize(self.bits.len() - 1, 0);
+                    #[cfg(feature = "debug_checks")]
+                        res.check(function!());
                     res
                 }
                 Ordering::Less => {
@@ -353,7 +367,9 @@ impl BigUInt {
                     self.length -= num_bits;
                     self.bits.resize(self.length / BLOCK_SIZE + if self.length % BLOCK_SIZE > 0 { 1 } else { 0 }, 0);
                     self.trim();
-                    // eprintln!("self:\t{}", self.to_bin_string());
+                    #[cfg(feature = "debug_checks")]
+                        res.check(function!());
+
                     res
                 }
             }

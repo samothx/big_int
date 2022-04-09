@@ -4,6 +4,7 @@ use std::mem::swap;
 // #[macro_use]
 use lazy_static::lazy_static;
 
+use crate::macros::function;
 use super::{BigUInt, BLOCK_MASK, Block, BLOCK_SIZE, BIT_65};
 
 lazy_static! {
@@ -92,6 +93,8 @@ impl BigUInt {
             if !overflow {
                 res.trim();
             }
+            #[cfg(feature = "debug_checks")]
+                res.check(function!());
             res
         }
     }
@@ -165,6 +168,9 @@ impl BigUInt {
             } else {
                 self.trim()
             }
+            #[cfg(feature = "debug_checks")]
+                self.check(function!());
+
         }
     }
 
@@ -234,6 +240,9 @@ impl BigUInt {
                     bits,
                 };
                 res.trim();
+                #[cfg(feature = "debug_checks")]
+                    res.check(function!());
+
                 res
             }
         }
@@ -305,6 +314,9 @@ impl BigUInt {
                     assert!(!borrowed_bit, "borrowed bit not settled! self: {:?}, other: {:?}", self, other);
                 }
                 self.trim();
+                #[cfg(feature = "debug_checks")]
+                    self.check(function!());
+
             }
         }
     }
@@ -349,6 +361,9 @@ impl BigUInt {
             for res in res_list {
                 sum += res;
             }
+            #[cfg(feature = "debug_checks")]
+                sum.check(function!());
+
             sum
         }
     }
@@ -401,7 +416,10 @@ impl BigUInt {
             // Identity 1: gcd(u, 0) = u
             // The shift by k is necessary to add back the 2ᵏ factor that was removed before the loop
             if v.is_zero() {
-                return u << k;
+                let res = u << k;
+                #[cfg(feature = "debug_checks")]
+                    res.check(function!());
+                return res
             }
 
             // Identity 3: gcd(u, 2ʲ v) = gcd(u, v) (u is known to be odd)
@@ -447,7 +465,10 @@ impl BigUInt {
                 sum += res;
             }
             self.length = sum.length;
-            self.bits = sum.bits
+            self.bits = sum.bits;
+            #[cfg(feature = "debug_checks")]
+                self.check(function!());
+
         }
     }
 
