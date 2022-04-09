@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
-
-use crate::BigUInt;
+use crate::{macros::function,BigUInt};
 use super::{BLOCK_SIZE, BLOCK_MASK};
 
 impl BigUInt {

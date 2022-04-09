@@ -4,6 +4,7 @@ use std::mem::swap;
 // #[macro_use]
 use lazy_static::lazy_static;
 
+use crate::macros::function;
 use super::{BigUInt, BLOCK_MASK, Block, BLOCK_SIZE, BIT_65};
 
 lazy_static! {

@@ -1,3 +1,5 @@
+use super::macros::function;
+
 type Block = u64;
 
 const BLOCK_SIZE: usize = 64;
