@@ -174,6 +174,20 @@ impl BigInt {
         self.uint.mul_into(&other.uint);
     }
 
+    #[inline]
+    pub fn div_by(&self, other: &Self) -> Self {
+        BigInt {
+            signed: self.signed ^ other.signed,
+            uint: self.uint.div_by(&other.uint),
+        }
+    }
+
+    #[inline]
+    pub fn div_into(&mut self, other: &Self) {
+        self.signed =  self.signed ^ other.signed;
+        self.uint = self.uint.div_by(&other.uint);
+    }
+
     pub fn pow(&self, power: u32) -> BigInt {
         BigInt {
             signed: if self.signed {
