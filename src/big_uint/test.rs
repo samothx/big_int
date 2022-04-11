@@ -409,6 +409,13 @@ fn test_div() {
     let modulo = bi.div_mod_into(&BigUInt::from_u32(0x3000));
     assert_eq!(bi.to_hex_string(), "2AAAA");
     assert_eq!(modulo.to_hex_string(), "2000");
+
+    let bi1 = BigUInt::from(0x80000000u32);
+    let bi2  = BigUInt::from(0x3000u32);
+    let res = BigUInt::from(0x2AAAAu32);
+    assert_eq!(&bi1 / &bi2, res);
+    assert_eq!(bi1 / &bi2, res);
+
 }
 
 #[test]
